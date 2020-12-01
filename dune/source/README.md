@@ -6,16 +6,16 @@ DUNE: Unified Navigation Environment is a runtime environment for unmanned syste
 
 ## Tarefas Adicionadas
 
-### Control/USV/SimpleHeadingAndSpeed
-[Controlo PID da embarcação](src/Control/USV/SimpleHeadingAndSpeed)
+### [Control/USV/SimpleHeadingAndSpeed](src/Control/USV/SimpleHeadingAndSpeed)
+Controlo PID da embarcação
 
-### Navigation/USV/Waypoints
-[Simulação super simples](src/Navigation/USV/Waypoints) que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID
+### [Navigation/USV/Waypoints](src/Navigation/USV/Waypoints)
+Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID
 
 
-### Actuators/UART_Comm
+### [Actuators/UART_Comm](src/Actuators/UART_Comm)
 Envio de mensagens para o Arduino
 
-### Actuators/Value_Generator
+### [Actuators/Value_Generator](Actuators/Value_Generator)
 Gerador de valores a serem recebidos pela tarefa acima e serem posteriormente enviados para o Arduino
 (Foi adicionado no diretório "etc/development" um ficheiro chamado uart_test.ini para testar estas 2 tasks)

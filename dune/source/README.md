@@ -6,8 +6,8 @@ DUNE: Unified Navigation Environment is a runtime environment for unmanned syste
 
 ## Tarefas Adicionadas
 
-# Control/USV/SimpleHeadingAndSpeed
+### Control/USV/SimpleHeadingAndSpeed
 Controlo PID da embarcação
 
-# Navigation/USV/Waypoints
+### Navigation/USV/Waypoints
 Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID

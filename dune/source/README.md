@@ -11,3 +11,10 @@ Controlo PID da embarcação
 
 ### Navigation/USV/Waypoints
 Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID
+
+
+### Actuators/UART_Comm
+Envio de mensagens para o Arduino
+
+### Actuators/Value_Generator
+Gerador de valores a serem recebidos pela tarefa acima e serem posteriormente enviados para o Arduino

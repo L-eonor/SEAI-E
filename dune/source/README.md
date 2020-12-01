@@ -18,3 +18,4 @@ Envio de mensagens para o Arduino
 
 ### Actuators/Value_Generator
 Gerador de valores a serem recebidos pela tarefa acima e serem posteriormente enviados para o Arduino
+(Foi adicionado no diretório "etc/development" um ficheiro chamado uart_test.ini para testar estas 2 tasks)

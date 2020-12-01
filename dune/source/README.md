@@ -16,6 +16,6 @@ Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeadin
 ### [Actuators/UART_Comm](src/Actuators/UART_Comm)
 Envio de mensagens para o Arduino
 
-### [Actuators/Value_Generator](Actuators/Value_Generator)
+### [Actuators/Value_Generator](src/Actuators/Value_Generator)
 Gerador de valores a serem recebidos pela tarefa acima e serem posteriormente enviados para o Arduino
-(Foi adicionado no diretório "etc/development" um ficheiro chamado uart_test.ini para testar estas 2 tasks)
+(Foi adicionado um ficheiro chamado [uart_test.ini](etc/development/uart_test.ini) para testar estas 2 tasks)

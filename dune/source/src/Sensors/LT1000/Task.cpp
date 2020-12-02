@@ -197,6 +197,7 @@ namespace Sensors
       void
       onResourceAcquisition(void)
       {
+        inf("OLA");
         if (m_args.pwr_channels.size() > 0)
         {
           IMC::PowerChannelControl pcc;
@@ -230,12 +231,17 @@ namespace Sensors
       bool
       openSocket(void)
       {
-        char addr[128] = {0};
-        unsigned port = 0;
+        char addr[128] = {"127.0.0.1"};
+        unsigned port = 3000;
 
-        if (std::sscanf(m_args.uart_dev.c_str(), "tcp://%[^:]:%u", addr, &port) != 2)
-          return false;
+        //if (std::sscanf(m_args.uart_dev.c_str(), "tcp://%[^:]:%u", addr, &port) != 2){
+          //inf("addr: %s",addr);
+          //inf("port: %d",port);
+          //return false;
+        //}
 
+        inf("addr2: %s",addr);
+        inf("port2: %d",port);
         TCPSocket* sock = new TCPSocket;
         sock->connect(addr, port);
         m_handle = sock;
@@ -808,6 +814,7 @@ namespace Sensors
       void
       interpretRMC(const std::vector<std::string>& parts)
       {
+        inf("RMC");
         if (parts.size() < c_rmc_fields)
         {
           war(DTR("invalid RMC sentence"));
@@ -827,6 +834,14 @@ namespace Sensors
           m_fix.lat = Angles::radians(m_fix.lat);
           m_fix.lon = Angles::radians(m_fix.lon);
           m_fix.validity |= IMC::GpsFix::GFV_VALID_POS;
+
+          inf("latitude: %lf", m_fix.lat);
+          inf("longitude: %lf", m_fix.lon);
+          inf("cog: %lf", m_fix.cog);
+          inf("sog: %lf", m_fix.sog);
+
+
+
 
           //validity date
           m_fix.validity |= IMC::GpsFix::GFV_VALID_DATE;
@@ -848,7 +863,7 @@ namespace Sensors
           if (m_wdog.overflow())
           {
             setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_COM_ERROR);
-            throw RestartNeeded(DTR(Status::getString(CODE_COM_ERROR)), 5);
+            throw RestartNeeded(DTR(Status::getString(CODE_COM_ERROR)), 3);
           }
         }
       }

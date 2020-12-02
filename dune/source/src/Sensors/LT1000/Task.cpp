@@ -832,6 +832,7 @@ namespace Sensors
           // Convert coordinates to radians.
           m_fix.lat = Angles::radians(m_fix.lat);
           m_fix.lon = Angles::radians(m_fix.lon);
+          m_fix.cog = Angles::normalizeRadian(Angles::radians(m_fix.cog));
           m_fix.validity |= IMC::GpsFix::GFV_VALID_POS;
 
           inf("latitude: %lf", m_fix.lat);

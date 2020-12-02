@@ -197,7 +197,6 @@ namespace Sensors
       void
       onResourceAcquisition(void)
       {
-        inf("OLA");
         if (m_args.pwr_channels.size() > 0)
         {
           IMC::PowerChannelControl pcc;
@@ -231,14 +230,14 @@ namespace Sensors
       bool
       openSocket(void)
       {
-        char addr[128] = {"127.0.0.1"};
-        unsigned port = 3000;
+        char addr[128] = {0};
+        unsigned port=0;
 
-        //if (std::sscanf(m_args.uart_dev.c_str(), "tcp://%[^:]:%u", addr, &port) != 2){
-          //inf("addr: %s",addr);
-          //inf("port: %d",port);
-          //return false;
-        //}
+        if (std::sscanf(m_args.uart_dev.c_str(), "tcp://%[^:]:%u", addr, &port) != 2){
+          inf("addr: %s",addr);
+          inf("port: %d",port);
+          return false;
+        }
 
         inf("addr2: %s",addr);
         inf("port2: %d",port);

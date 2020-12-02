@@ -548,10 +548,8 @@ namespace Sensors
           interpretRMC(parts);
         }
 
-        //m_wdog.reset();
-
-        //if (parts[0] == m_args.stn_order.back())
-        //{
+        if (parts[0] == m_args.stn_order.back())
+        {
           m_wdog.reset();
           dispatch(m_fix);
 
@@ -578,7 +576,7 @@ namespace Sensors
             std::sprintf(m_bufer_entity, "wait gps fix - hdop: %.2f , Sat: %d", m_fix.hdop, m_fix.satellites);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
-        //}
+        }
       }
 
       bool

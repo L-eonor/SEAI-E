@@ -45,7 +45,7 @@ namespace Navigation
   {
     namespace LT1000Navigation
     {
-      
+
       struct Arguments  //TODO
       {
         //! GPS entity label.
@@ -59,7 +59,7 @@ namespace Navigation
       };
 
 
-      
+
       struct Task: public DUNE::Tasks::Task
       {
         //! GPS entity eid.
@@ -117,7 +117,7 @@ namespace Navigation
           bind<IMC::EulerAngles>(this);
           bind<IMC::GpsFix>(this);
           //bind<IMC::GroundVelocity>(this);     //Not Used
- 
+
 
 
 
@@ -210,6 +210,7 @@ namespace Navigation
           m_estate.lat = msg->lat;
           m_estate.lon = msg->lon;
 
+
           if (m_args.convert_msl && !m_offset_flag)
           {
             m_offset_flag = true;
@@ -232,6 +233,14 @@ namespace Navigation
 
           if (msg->getSourceEntity() == m_yaw_eid)
             m_estate.psi = msg->cog;
+
+          inf("latitude: %lf", m_estate.lat);
+          inf("longitude: %lf", m_estate.lon);
+          inf("vx: %lf", m_estate.vx);
+          inf("vy: %lf", m_estate.vy);
+          inf("u: %lf", m_estate.u);
+          inf("psi: %lf", m_estate.psi);
+
 
           dispatch(m_estate);
         }

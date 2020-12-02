@@ -66,18 +66,15 @@ namespace Simulators
     //! %Task arguments.
     struct Arguments
     {
-      //! Ground velocity report flag.
-      bool report_gv;
+      //! GpsFix report flag.
+      bool report_gpsFix;
       //! Yaw report flag.
       bool report_yaw;
-      //! Activation depth.
-      double act_depth;
       //! Horizontal Dilution of Precision.
       double hdop;
       //! Horizontal Accuracy.
       double hacc;
-      //! Number of sattelites.
-      uint16_t n_sat;
+
       //! Initial position (degrees)
       std::vector<double> position;
     };
@@ -87,8 +84,6 @@ namespace Simulators
     {
       //! GPS Fix message.
       IMC::GpsFix m_fix;
-      //! Ground velocity message.
-      IMC::GroundVelocity m_gv;
       //! Euler Angles message.
       IMC::EulerAngles m_euler;
       //! Current simulated state.
@@ -104,20 +99,13 @@ namespace Simulators
         Tasks::Periodic(name, ctx)
       {
         // Retrieve configuration parameters.
-        param("Report Ground Velocity", m_args.report_gv)
+        param("Report GPS Fix", m_args.report_gpsFix)
         .defaultValue("false")
-        .description("Activate output of Ground Velocity messages");
+        .description("Activate output of GPS Fix messages");
 
         param("Report Yaw", m_args.report_yaw)
         .defaultValue("false")
         .description("Activate output of Euler Angles messages");
-
-        param("Activation Depth", m_args.act_depth)
-        .units(Units::Meter)
-        .minimumValue("0.0")
-        .maximumValue("1.0")
-        .defaultValue("0.20")
-        .description("Minimum depth at which the GPS is unable to produce accurate fixes");
 
         param("HDOP", m_args.hdop)
         .minimumValue("0.0")
@@ -129,10 +117,6 @@ namespace Simulators
         .defaultValue("2.0")
         .description("Horizontal Accuracy index");
 
-        param("Number of Satellites", m_args.n_sat)
-        .defaultValue("8")
-        .description("Number of available satellites");
-
         param("Initial Position", m_args.position)
         .units(Units::Degree)
         .size(2)
@@ -140,57 +124,42 @@ namespace Simulators
 
         m_fix.clear();
         m_euler.clear();
-        m_gv.clear();
 
         setEntityState(IMC::EntityState::ESTA_BOOT, Status::CODE_WAIT_GPS_FIX);
 
         m_fix.validity = c_gps_valid;
-        m_gv.validity = c_dvl_valid;
-
-        bind<IMC::GpsFix>(this);
-        bind<IMC::SimulatedState>(this);
       }
 
       void
       onUpdateParameters(void)
       {
-        m_origin.lat = Math::Angles::radians(m_args.position[0]);
-        m_origin.lon = Math::Angles::radians(m_args.position[1]);
-        m_origin.type = IMC::GpsFix::GFT_MANUAL_INPUT;
-        m_origin.validity = 0xffff;
+        m_fix.lat = Math::Angles::radians(m_args.position[0]);
+        m_fix.lon = Math::Angles::radians(m_args.position[1]);
+        m_fix.type = IMC::GpsFix::GFT_MANUAL_INPUT;
+        m_fix.validity = 0xffff;
       }
 
       void
       onResourceInitialization(void)
       {
         // Dispatching local origin.
-        dispatch(m_origin);
+        dispatch(m_fix);
+
+        inf("O QUE É QUE ACONTECE QUANDO INICIALIZA?");
+        inf("m_fix.lat:  %f", m_fix.lat);
+        inf("m_fix.lon:  %f", m_fix.lon);
+        inf("m_fix.type: %d", m_fix.type);
+        inf("m_fix.val:  %d", m_fix.validity);
+
+
+        m_sstate.u= 2;
+        m_sstate.v= 1;
+        m_sstate.psi= 1.27;
+        m_sstate.x= 10;
+        m_sstate.y= 100;
+        m_sstate.z=0;
       }
 
-      void
-      consume(const IMC::GpsFix* msg)
-      {
-        if (msg->type != IMC::GpsFix::GFT_MANUAL_INPUT)
-          return;
-
-        if (msg->getSourceEntity() == getEntityId())
-          return;
-
-        m_origin = *msg;
-      }
-
-      void
-      consume(const IMC::SimulatedState* msg)
-      {
-        if (getEntityState() != IMC::EntityState::ESTA_NORMAL)
-        {
-          setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
-          m_fix.setTimeStamp();
-          m_sstate_at_fix = *msg;
-        }
-
-        m_sstate = *msg;
-      }
 
       //! Report invalid fix.
       void
@@ -198,7 +167,6 @@ namespace Simulators
       {
         trace("reporting invalid fix");
 
-        m_fix.satellites = 0;
         m_fix.validity = 0;
         m_fix.sog = 0.0;
         m_fix.cog = 0.0;
@@ -211,48 +179,31 @@ namespace Simulators
       void
       task(void)
       {
-        // Report invalid fixes when system is underwater.
-        if (m_sstate.z > m_args.act_depth)
-        {
-          reportInvalidFix();
-          return;
-        }
 
         double now = Clock::getSinceEpoch();
+        inf("NOW:  %lf", now);
 
         // Report GpsFix.
         m_fix.sog = std::sqrt(std::pow(m_sstate.u, 2) + std::pow(m_sstate.v, 2));
         m_fix.cog = m_sstate.psi;
         m_fix.validity = c_gps_valid;
-        m_fix.satellites = m_args.n_sat;
         m_fix.hdop = m_args.hdop;
         m_fix.hacc = m_args.hacc;
 
         // WGS84 coordinates.
-        m_fix.lat = m_origin.lat;
-        m_fix.lon = m_origin.lon;
-        m_fix.height = m_origin.height;
+        m_fix.lat = m_fix.lat;
+        m_fix.lon = m_fix.lon;
+        m_fix.height = m_fix.height;
         WGS84::displace(m_sstate.x, m_sstate.y, m_sstate.z, &m_fix.lat, &m_fix.lon, &m_fix.height);
         m_fix.utc_time = ((uint32_t)now) % 86400;
 
-        trace("fix: %0.6f %0.6f | yaw %0.1f | ground velocity %0.1f %0.1f %0.1f",
+        trace("fix: %0.6f %0.6f | yaw %0.1f",
               Angles::degrees(m_fix.lat), Angles::degrees(m_fix.lon),
-              Angles::degrees(m_euler.psi),
-              m_gv.x, m_gv.y, m_gv.z);
+              Angles::degrees(m_euler.psi));
 
         m_fix.setTimeStamp(now);
         dispatch(m_fix, DF_KEEP_TIME);
 
-        // Report GroundVelocity.
-        if (m_args.report_gv)
-        {
-          m_gv.x = m_sstate.u;
-          m_gv.y = m_sstate.v;
-          m_gv.z = m_sstate.z;
-
-          m_gv.setTimeStamp(now);
-          dispatch(m_gv, DF_KEEP_TIME);
-        }
 
         // Report Heading.
         if (m_args.report_yaw)
@@ -261,6 +212,18 @@ namespace Simulators
           m_euler.setTimeStamp(now);
           dispatch(m_euler, DF_KEEP_TIME);
         }
+
+
+         inf("m_euler.psi     -> %f",  m_euler.psi);
+         inf("m_fix.sog       -> %lf", m_fix.sog );
+         inf("m_fix.cog       -> %lf", m_fix.cog);
+         inf("m_fix.validity  -> %d",  m_fix.validity);
+         inf("m_fix.lat       -> %lf", m_fix.lat);
+         inf("m_fix.lon       -> %lf", m_fix.lon);
+         inf("m_fix.height    -> %lf", m_fix.height);
+         inf("*****************************************");
+
+
       }
     };
   }

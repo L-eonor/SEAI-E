@@ -94,7 +94,7 @@ namespace Actuators
       void createCommand(const std::string& cmd_type, fp32_t val)
       {
         std::stringstream ss;
-        ss << cmd_type << ": " << val;
+        ss << cmd_type << val << "\n";
 
         std::string str = ss.str();
 
@@ -145,8 +145,8 @@ namespace Actuators
 
             if ((msg->value) != t1_prev)
             {
-              createCommand("\nT_ID", msg->id);
-              createCommand(" V", msg->value);
+              // "m" is the motor 1 identifier in the Arduino Sketch
+              createCommand("m", msg->value);
 
               t1_prev = msg->value;
             }
@@ -154,8 +154,8 @@ namespace Actuators
           if ((msg->id) == 2)
             if ((msg->value) != t2_prev)
             {
-              createCommand("\nT_ID", msg->id);
-              createCommand(" V", msg->value);
+              // "M" is the motor 2 identifier in the Arduino Sketch
+              createCommand("M", msg->value);
 
               t2_prev = msg->value;
             }
@@ -175,8 +175,8 @@ namespace Actuators
 
           if ((msg->value) != s1_prev)
           {
-            createCommand("\nS_ID", msg->id);
-            createCommand(" V", msg->value);
+            // "l" is the rudder identifier in the Arduino Sketch
+            createCommand("l", msg->value);
 
             s1_prev = msg->value;
           }

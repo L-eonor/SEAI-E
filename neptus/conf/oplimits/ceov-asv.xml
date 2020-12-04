@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OperationLimits>
+    <editingPainting>false</editingPainting>
+    <maxDepth>0.0</maxDepth>
+    <shynched>false</shynched>
+</OperationLimits>

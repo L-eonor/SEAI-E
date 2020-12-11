@@ -126,7 +126,7 @@ namespace Actuators
           {
             thruster_1.id = 1;
             value = rand() % 101;
-            thruster_1.value = (float)value * 0.01;   
+            thruster_1.value = (((float)value * 0.01)-0.5)*2;  
             thruster_1.setSourceEntity(getEntityId());
             dispatch(thruster_1);
           }
@@ -135,12 +135,12 @@ namespace Actuators
           {
             thruster_1.id = 1;
             value = rand() % 101;
-            thruster_1.value = (float)value * 0.01;
+            thruster_1.value = (((float)value * 0.01)-0.5)*2;
             thruster_1.setSourceEntity(getEntityId());
 
             servo_1.id = 1;
             value = rand() % 101;
-            servo_1.value = (float)value * 0.01;
+            servo_1.value = (((float)value * 0.01)-0.5)*2;
             servo_1.setSourceEntity(getEntityId());
 
             dispatch(thruster_1);
@@ -152,17 +152,17 @@ namespace Actuators
           {
             thruster_1.id = 1;
             value = rand() % 101;
-            thruster_1.value = (float)value * 0.01;
+            thruster_1.value = (((float)value * 0.01)-0.5)*2;
             thruster_1.setSourceEntity(getEntityId());
 
             servo_1.id = 1;
             value = rand() % 101;
-            servo_1.value = (float)value * 0.01;
+            servo_1.value = (((float)value * 0.01)-0.5)*2;
             servo_1.setSourceEntity(getEntityId());
 
             thruster_2.id = 2;
             value = rand() % 101;
-            thruster_2.value = (float)value * 0.01;
+            thruster_2.value = (((float)value * 0.01)-0.5)*2;
             thruster_2.setSourceEntity(getEntityId());
 
             dispatch(thruster_1);

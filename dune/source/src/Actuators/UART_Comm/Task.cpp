@@ -67,7 +67,8 @@ namespace Actuators
 
 
       //previous values of the servo and the thrusters
-      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0, value;
+      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0;
+      int value;
 
       void sendCommand(const char* cmd)
       {
@@ -142,29 +143,36 @@ namespace Actuators
           inf("Source entity (Task instance) ID is: %d", msg->getSourceEntity());
 	        inf("Truster ID is %d, value is %f ", msg->id, msg->value);
 
-          if ((msg->id) == 1)
+          if((msg->id) == 1)
+          {
+            value = int(((float)(msg->value)/2+0.5)*100);
 
-            value = ((msg->value)-0.5)*2;
-
-            if ((value) != t1_prev)
+            if((value) != t1_prev)
             {
               // "m" is the motor 1 identifier in the Arduino Sketch
               createCommand("m", value);
 
+              inf("Value is %d ", value);
+
               t1_prev = value;
             }
+          }
 
-          if ((msg->id) == 2)
-
-            value = ((msg->value)-0.5)*2;
+          if((msg->id) == 2)
+          {
+            value = ((msg->value)/2+0.5)*100;
 
             if ((value) != t2_prev)
             {
               // "M" is the motor 2 identifier in the Arduino Sketch
               createCommand("M", value);
 
+              inf("Value is %d ", value);
+
               t2_prev = value;
             }
+
+          }
         }
       }
 

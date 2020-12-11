@@ -114,6 +114,7 @@ namespace Actuators
         IMC::SetThrusterActuation thruster_1, thruster_2;
         IMC::SetServoPosition servo_1;
         uint8_t msg_num;
+        int value;
   
 
         while (!stopping())
@@ -124,7 +125,8 @@ namespace Actuators
           if(msg_num == 1)
           {
             thruster_1.id = 1;
-            thruster_1.value = rand() % 6;
+            value = rand() % 101;
+            thruster_1.value = (float)value * 0.01;   
             thruster_1.setSourceEntity(getEntityId());
             dispatch(thruster_1);
           }
@@ -132,11 +134,13 @@ namespace Actuators
           if(msg_num == 2)
           {
             thruster_1.id = 1;
-            thruster_1.value = rand() % 6;
+            value = rand() % 101;
+            thruster_1.value = (float)value * 0.01;
             thruster_1.setSourceEntity(getEntityId());
 
             servo_1.id = 1;
-            servo_1.value = rand() % 6;
+            value = rand() % 101;
+            servo_1.value = (float)value * 0.01;
             servo_1.setSourceEntity(getEntityId());
 
             dispatch(thruster_1);
@@ -147,15 +151,18 @@ namespace Actuators
           if(msg_num == 2)
           {
             thruster_1.id = 1;
-            thruster_1.value = rand() % 6;
+            value = rand() % 101;
+            thruster_1.value = (float)value * 0.01;
             thruster_1.setSourceEntity(getEntityId());
 
             servo_1.id = 1;
-            servo_1.value = rand() % 6;
+            value = rand() % 101;
+            servo_1.value = (float)value * 0.01;
             servo_1.setSourceEntity(getEntityId());
 
             thruster_2.id = 2;
-            thruster_2.value = rand() % 6;
+            value = rand() % 101;
+            thruster_2.value = (float)value * 0.01;
             thruster_2.setSourceEntity(getEntityId());
 
             dispatch(thruster_1);

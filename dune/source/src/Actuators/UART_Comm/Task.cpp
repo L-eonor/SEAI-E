@@ -67,7 +67,7 @@ namespace Actuators
 
 
       //previous values of the servo and the thrusters
-      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0;
+      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0, value;
 
       void sendCommand(const char* cmd)
       {
@@ -94,6 +94,7 @@ namespace Actuators
       void createCommand(const std::string& cmd_type, fp32_t val)
       {
         std::stringstream ss;
+
         ss << cmd_type << val << "\n";
 
         std::string str = ss.str();
@@ -143,21 +144,26 @@ namespace Actuators
 
           if ((msg->id) == 1)
 
-            if ((msg->value) != t1_prev)
+            value = ((msg->value)-0.5)*2;
+
+            if ((value) != t1_prev)
             {
               // "m" is the motor 1 identifier in the Arduino Sketch
-              createCommand("m", msg->value);
+              createCommand("m", value);
 
-              t1_prev = msg->value;
+              t1_prev = value;
             }
 
           if ((msg->id) == 2)
-            if ((msg->value) != t2_prev)
+
+            value = ((msg->value)-0.5)*2;
+
+            if ((value) != t2_prev)
             {
               // "M" is the motor 2 identifier in the Arduino Sketch
-              createCommand("M", msg->value);
+              createCommand("M", value);
 
-              t2_prev = msg->value;
+              t2_prev = value;
             }
         }
       }

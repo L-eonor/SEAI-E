@@ -10,7 +10,7 @@ DUNE: Unified Navigation Environment is a runtime environment for unmanned syste
 Controlo PID da embarcação
 
 ### [Navigation/USV/Waypoints](src/Navigation/USV/Waypoints)
-Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID. Foi adicionada no ficheiro [test_pid.ini](etc/development/test_pid.ini) para testas a tarefa de PID.
+Simulação super simples que envia EstimatedState, DesiredSpeed e DesiredHeading para testar o Controlo PID. Foi adicionada no ficheiro [test_pid.ini](etc/development/test_pid.ini) para testar a tarefa de PID.
 
 
 ### [Actuators/UART_Comm](src/Actuators/UART_Comm)

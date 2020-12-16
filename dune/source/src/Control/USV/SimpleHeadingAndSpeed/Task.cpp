@@ -32,10 +32,12 @@
 
 namespace Control
 {
-  //! %PID Controllers for Heading and Speed
-  //! %Task subscribes to messages that specify desired heading and distance
-  //! to destination. It then generates an output value for thrusters and
-  //! rummers in order to minimize error. Output value range is parameter
+  //! PID Controllers for Heading and Speed. 
+  //! Highly based on Ricardo Gomes' and José Braga's control task 
+  //! (Control/ASV/HeadingAndSpeed). 
+  //! Task subscribes to messages that specify desired heading and distance 
+  //! to destination. It then generates an output value for thrusters and 
+  //! rummers in order to minimize error. Output value range is parameter 
   //! defined.
   //! 
   //! @author Carlos Pinto
@@ -46,6 +48,9 @@ namespace Control
 
       using DUNE_NAMESPACES;
 
+      c_forward_cone = Math::c_pi/4.0;
+      c_forward_cone_tol = Math::c_pi/36.0;
+
       struct Arguments
       {
         //! Maximum Thruster Output
@@ -54,10 +59,10 @@ namespace Control
         float max_thruster_diff;
         //! Maximum Thruster Change Rate
         float max_thruster_rate;
-        //! Percentage of thruster usage to change heading when at high speed
-        float low_spd_thrust_percent;
         //! Percentage of thruster usage to change heading when at low speed
-        float high_spd_thrust_percent;
+        float low_spd_thrust_percent;
+        //! Percentage of rudder usage to change heading when at high speed
+        float high_spd_rudder_percent;
         //! Threshold that defines "Moving Fast" and "Moving Slowly"
         float speed_threshold;
         //! Hysteresis distance betwen "Moving Fast" and "Moving Slowly"
@@ -66,11 +71,23 @@ namespace Control
         std::vector<float> speed_gains;
         //! PID gains for Heading controller
         std::vector<float> heading_gains;
+        //! Entity label of port motor
+        std::string entityid_motor_port;
+        //! Entity label of starboard motor
+        std::string entityid_motor_starboard;
+        //! Entity label of rudder
+        std::string entityid_rudder;
       };
 
       struct Task: public DUNE::Tasks::Task
       {
 
+        //! Entity ID of motor port based on Entity Label Resolution
+        uint16_t m_entity_id_motor_port;
+        //! Entity ID of motor starboard based on Entity Label Resolution
+        uint16_t m_entity_id_motor_starboard;
+        //! Entity ID of rudder based on Entity Label Resolution
+        uint16_t m_entity_id_rudder;
         //! Target speed which speed PID will attempt to achieve
         float m_target_speed;
         //! Target heading which heading PID will attempt to achieve
@@ -89,6 +106,8 @@ namespace Control
         float m_rudders_act;
         //! Vessel is moving at high speed
         bool m_high_speed;
+        //! Vessel is moving forward
+        bool m_moving_to_dest;
         //! Speed PID controller
         DUNE::Control::DiscretePID m_speed_pid;
         //! Heading PID controller
@@ -114,7 +133,7 @@ namespace Control
 
           param("Maximum Thruster Rate", m_args.max_thruster_rate)
           .defaultValue("0.0")
-          .description("Maximum value between each consecutive actuation per second");
+          .description("Maximum value of thruster actuation change in Duty Cycle/second");
 
           param("Low Speed Thruster Percentage", m_args.low_spd_thrust_percent)
           .defaultValue("0.2")
@@ -141,12 +160,28 @@ namespace Control
           .defaultValue("")
           .size(3)
           .description("PID gains for Heading Controller, given as Kp Ki Kd, respectively");
+
+          param("Entity Label - Port Motor", m_args.entityid_motor_port)
+          .defaultValue("Motor - Port")
+          .description("Entity label of port motor rpm");
+
+          param("Entity Label - Starboard Motor", m_args.entityid_motor_starboard)
+          .defaultValue("Motor - Starboard")
+          .description("Entity label of starboard motor rpm");
+
+          param("Entity Label - Rudder", m_args.entityid_rudder)
+          .defaultValue("Rudder")
+          .description("Entity label of rudders");
         
           // Start system at a standstill
           m_target_speed = 0.0;
           m_high_speed = false;
+          m_moving_to_dest = false;
           m_thruster_prev_act_port = 0.0;
           m_thruster_prev_act_starboard = 0.0;
+
+          // Initialize entity state.
+          setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_IDLE);
 
           // Subscribe to relevant IMC messages
           bind<IMC::EstimatedState>(this);
@@ -163,6 +198,11 @@ namespace Control
           {
             resetPID();
             setupPID();
+          }. 
+
+          if (paramChanged(m_args.max_thruster_rate))
+          {
+            m_args.max_thruster_rate %= 100; // convert from % to fraction
           }
         }
 
@@ -172,10 +212,39 @@ namespace Control
         {
         }
 
-        //! Resolve entity names.
+        //! Resolve entities.
         void
         onEntityResolution(void)
         {
+          // This is just so we don't use strings to define entities,
+          // and use instead an associated id. 
+          // THIS ISN'T BEING USED YET!
+          try
+          {
+            m_entity_id_motor_port = resolveEntity(m_args.entityid_motor_port);
+          }
+          catch (...)
+          {
+            m_entity_id_motor_port = 0xffff;
+          }
+
+          try
+          {
+            m_entity_id_motor_starboard = resolveEntity(m_args.entityid_motor_starboard);
+          }
+          catch (...)
+          {
+            m_entity_id_motor_starboard = 0xffff;
+          }
+
+          try
+          {
+            m_entity_id_rudder = resolveEntity(m_args.entityid_rudder);
+          }
+          catch (...)
+          {
+            m_entity_id_rudder = 0xffff;
+          }
         }
 
         //! Acquire resources.
@@ -221,23 +290,48 @@ namespace Control
         void
         consume(const IMC::EstimatedState *msg){
           double time_step = m_timestep.getDelta();
-          if (time_step < 0.0)
+          if (time_step <= 0.0)
           {
             return;
           }
 
-          float heading_error = Angles::normalizeRadian(m_target_heading - msg->psi);
+          float current_direction;
+          float current_speed = msg->u;
+          evaluateSpeed(current_speed);
+          if (m_high_speed)
+          {
+            current_direction = msg->psi;
+          }
+          else
+          {
+            current_direction = msg->psi; // for now, until i don't know how to get true heading
+            //desired_direction = msg->TRUE_HEADING;
+          }
+
+          float heading_error = Angles::normalizeRadian(m_target_heading - current_direction);
           float heading_output = m_heading_pid.step(time_step, heading_error);
+          movingForward(heading_error);
+          
+          float speed_error = 0;
+          float speed_output = 0;
 
-          float speed_error = m_target_speed - msg->u;
-          float speed_output = m_speed_pid.step(time_step, speed_error);
+          if (m_moving_to_dest) // only use speed control after we're moving towards destination point
+          {
+            speed_error = m_target_speed - current_speed;
+            speed_output = m_speed_pid.step(time_step, speed_error);
+            spew("New Estimated state received by Controller! Heading error is %f rad and speed error is %f knots", heading_error, speed_error);
+          }
+          else
+          {
+            spew("New Estimated state received by Controller! Heading error 
+          float heading_error = Angles::normalizeRadian(m_target_heading - current_direction);
+          float heading_output = m_heading_pid.step(time_step, heading_error);is %f rad and is too big, so no speed PID will be used", heading_error);
+          }
 
-          spew("New Estimated state received by Controller! Heading error is %f rad and speed error is %f knots", heading_error, speed_error);
-
-          distributeHeadingControl(heading_output, msg->u);
+          distributeHeadingControl(heading_output);
           distributeThrusterControl(speed_output);
 
-          limitThrusterJitter(time_step);
+          limitThrusterRate(time_step);
 
           m_thruster_act_port = normalize (m_thruster_act_port, -m_args.max_thruster_act, m_args.max_thruster_act);
           m_thruster_act_starboard = normalize (m_thruster_act_starboard, -m_args.max_thruster_act, m_args.max_thruster_act);
@@ -245,8 +339,8 @@ namespace Control
           sendActuation();
         }
 
-        //! %Reset PIDs
-        //! %Resets error memory from PIDs (last error and integral of error)
+        //! Reset PIDs. 
+        //! Resets error memory from PIDs (last error and integral of error)
         void
         resetPID(void)
         {
@@ -254,8 +348,8 @@ namespace Control
           m_heading_pid.reset();
         }
 
-        //! %Sets up PID controllers
-        //! %Sets up PID gains and output limits based on specified parameters
+        //! Sets up PID controllers. 
+        //! Sets up PID gains and output limits based on specified parameters
         void
         setupPID(void)
         {
@@ -266,78 +360,95 @@ namespace Control
           m_heading_pid.setOutputLimits(-m_args.max_thruster_act, m_args.max_thruster_act);
         }
 
-        //! %Distributes Heading control signals
-        //! %Based on current speed, distributes the heading control between
+        //! Distributes Heading control signals. 
+        //! Based on current speed, distributes the heading control between
         //! thrusters and rudders
         //! @param[in] heading_output desired output to control heading, negative means "Turn to Port"
         //! @param[in] speed speed at which the vessel is currently moving
         void
-        distributeHeadingControl(float heading_output, float speed)
+        distributeHeadingControl(float heading_output)
         {
-          // determine if moving fast or slow
-          evaluateSpeed(speed);
-
           // calculate distribution according to current speed state
           if (m_high_speed)
           {
-            m_thruster_act_heading = heading_output * m_args.high_spd_thrust_percent;
-            m_rudders_act = heading_output * (1-m_args.high_spd_thrust_percent);
+            m_thruster_act_heading = heading_output;
+            if (m_moving_to_dest)//TO DO: this is based on SOG, which might not coincide (and usually doesn't) with speed in relation to water, which is what matters for rudders to turn the vessel
+            { //using rudders only makes sense if we're moving forward 
+              m_rudders_act = heading_output * m_args.high_spd_rudder_percent;
+            }
           }
           else
           {
             m_thruster_act_heading = heading_output * m_args.low_spd_thrust_percent;
-            m_rudders_act = heading_output * (1-m_args.low_spd_thrust_percent);
+            m_rudders_act = heading_output;
           }
 
           // guarantee that differential motor control is inside specified difference
-          m_thruster_act_heading = DUNE::Math::trimValue(m_thruster_act_heading, -m_args.max_thruster_diff, m_args.max_thruster_diff);
-          // normalize rudders actuation between 0 and 1
-          m_rudders_act = normalize(m_rudders_act, -m_args.max_thruster_act, m_args.max_thruster_act);
+          // m_thruster_act_heading = DUNE::Math::trimValue(m_thruster_act_heading, -m_args.max_thruster_diff, m_args.max_thruster_diff);
+          // // normalize rudders actuation between 0 and 1
+          // m_rudders_act = normalize(m_rudders_act, -m_args.max_thruster_act, m_args.max_thruster_act);
         }
 
-        //! %Distributes thruster control values
-        //! %Based on thruster actuation values that result from both
-        //! heading and speed control, merge both to get the effective
-        //! actuation value to be applied to both thrusters
-        //! @param[in] speed_output desired output to control speed
+        //! Distributes thruster control values. 
+        //! Based on thruster actuation values that result from both 
+        //! heading and speed control, merge both to get the effective 
+        //! actuation value to be applied to both thrusters and make 
+        //! sure they aren't bigger than max actuation values
+        //! @param[in] speed_output desired output for speed control (i.e. common actuation)
         void
         distributeThrusterControl(float speed_output)
         {
           // distribute actuation
-          m_thruster_act_starboard = speed_output - m_thruster_act_heading/2.0;
-          m_thruster_act_port = speed_output + m_thruster_act_heading/2.0;
+          m_thruster_act_starboard = speed_output - m_thruster_act_heading;
+          m_thruster_act_port = speed_output + m_thruster_act_heading;
 
           // check if no limits were transpassed; favor heading control if they were.
-          if (m_thruster_act_starboard > m_args.max_thruster_act) // we want to turn to starboard "a lot"
+          // note that due to the structure of the control only one of these conditions can apply at any time
+          if (m_thruster_act_starboard > m_args.max_thruster_act) // we want to turn to port "a lot" - starboard thruster
           {
-            m_thruster_act_port = m_args.max_thruster_act + m_thruster_act_heading;
+            m_thruster_act_port -= (m_thruster_act_starboard-m_args.max_thruster_act);
             m_thruster_act_starboard = m_args.max_thruster_act;
           }
-          else if (m_thruster_act_port < -m_args.max_thruster_act) // we want to turn to port "a lot"
+          else if (m_thruster_act_starboard < -m_args.max_thruster_act) // we want to turn to starboard "a lot" - starboard thruster
           {
+            m_thruster_act_port -= (m_thruster_act_starboard + m_args.max_thruster_act);
+            m_thruster_act_starboard = -m_args.max_thruster_act;
+          }
+
+          else if (m_thruster_act_port > m_args.max_thruster_act) // we want to turn to starboard "a lot" - port thruster
+          {
+            m_thruster_act_starboard -= (m_thruster_act_port-m_args.max_thruster_act);
+            m_thruster_act_port = m_args.max_thruster_act;
+          }
+          else if (m_thruster_act_port < -m_args.max_thruster_act) // we want to turn to port "a lot" - port thruster
+          {
+            m_thruster_act_starboard -= (m_thruster_act_port + m_args.max_thruster_act);
             m_thruster_act_port = -m_args.max_thruster_act;
-            m_thruster_act_starboard = -m_args.max_thruster_act - m_thruster_act_heading;
           }
         }
 
-        //! %Classifies current speed state
-        //! %Based on current speed, decides if speed is currently fast or slow
+        //! Classifies current speed state. 
+        //!
+        //! Based on current speed, decides if speed is currently fast or slow 
+        //! using a simple threshold compare with hysteresis
         //! @param[in] speed speed at which we're currently moving
         void
         evaluateSpeed(float speed)
         {
-          if ((speed > m_args.speed_threshold + (m_args.speed_hysteresis/2)) && (!m_high_speed))
+          if ((!m_high_speed) && 
+              (speed > m_args.speed_threshold + (m_args.speed_hysteresis/2.0)))
           {
             m_high_speed = true;
           }
-          else if ((speed < m_args.speed_threshold - (m_args.speed_hysteresis/2)) && (m_high_speed))
+          else if ((m_high_speed) &&
+                   (speed < m_args.speed_threshold - (m_args.speed_hysteresis/2.0)))
           {
             m_high_speed = false;
           }
         }
 
-        //! %Normalize value
-        //! %Normalizes value to fit on a scale between 0 and 1, 
+        //! Normalize value. 
+        //! Normalizes value to fit on a scale between 0 and 1, 
         //! from an original scale specified as a parameter
         //! @param[in] value value to be normalized
         //! @param[in] min minimum value of original scale
@@ -349,12 +460,12 @@ namespace Control
           return (value-min)/(max-min);
         }
 
-        //! %Limit Thruster Rate of Change
-        //! %Limits the rate between each consecutive thruster actuation
+        //! Limit Thruster Rate of Change. 
+        //! Limits the rate between each consecutive thruster actuation
         //! in order to avoid sudden acceleration/braking
         //! @param[in] timestep time occurred between this actuation and the last
         void
-        limitThrusterJitter(double timestep)
+        limitThrusterRate(double timestep)
         {
           if (m_args.max_thruster_rate == 0.0){
             return;
@@ -365,8 +476,8 @@ namespace Control
           m_thruster_prev_act_starboard = m_thruster_act_starboard;
         }
 
-        //! %Limit derivative of a value
-        //! %Limits the derivative of a value, in respect to a provided max derivative
+        //! Limit derivative of a value. 
+        //! Limits the derivative of a value, in respect to a provided max derivative
         //! @param[in] timestep time occurred between this value and the previous
         //! @param[in] current_value current value whose derivative will be limited
         //! @param[in] previous_value previous value to be used in order to compute derivative
@@ -394,6 +505,25 @@ namespace Control
             }
           }
           return current_value;
+        }
+
+        void
+        movingForward(float heading_error)
+        {
+          if (!m_moving_to_dest)
+          {
+            if (std::fabs(heading_error) < c_forward_cone)
+            {
+              m_moving_to_dest = true;
+            }
+          }
+          else
+          {
+            if (std::fabs(heading_error) > c_forward_cone + c_forward_cone_tol)
+            {
+              m_moving_to_dest = false;
+            }
+          }
         }
 
         void

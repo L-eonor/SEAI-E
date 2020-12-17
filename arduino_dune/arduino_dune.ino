@@ -1,6 +1,4 @@
 #include <Servo.h>
-#include "channels.h"
-channels_t serial_channels;
 
 #define RUDDER_PIN1 11 // leme EB
 #define RUDDER_PIN2 13 // leme BB
@@ -14,6 +12,15 @@ channels_t serial_channels;
 #define MOTOR_PARADO 1500
 
 #define NAV_LIGHTS_PIN 9 // PIN9 - NAVIGATION LIGHTS
+
+#define MOTOR_BB_RED 8
+#define MOTOR_BB_GREEN 7
+#define MOTOR_BB_BLUE 6
+
+#define MOTOR_EB_RED 5
+#define MOTOR_EB_GREEN 4
+#define MOTOR_EB_BLUE 3
+
 
 //
 // PINS 2/3 - RELES POTENCIA FLUTUADORS
@@ -30,49 +37,138 @@ Servo motor1;
 Servo motor2;
 
 
-int16_t motor_bb{};
-int16_t motor_eb{};
-int16_t rudder_bb{};
-int16_t rudder_eb{};
+int16_t motor_bb = 1500;
+int16_t motor_eb = 1500;
+int16_t rudder_bb = 1500;
+int16_t rudder_eb = 1500;
 
-void serial_write(uint8_t b)
-{
-    Serial.write(b);
+String Comand;
+
+/*
+    if (channel == 'm')  {
+    motor_bb = value;
+    } else if (channel == 'M')  {
+    motor_eb = value;
+    } else if (channel == 'l')  {
+    rudder_bb = value;
+    } else if (channel == 'L')  {
+    rudder_eb = value;
+*/
+void ReadComand() {
+    String validComand = "Invalid";
+    if (Serial1.available() > 0)
+        Comand = Serial1.readString();
+    if (Serial.available() > 0)
+        Comand = Serial.readString();
+
+    if (Comand == "") {
+    }
+    else {
+
+        Comand = Comand.substring(0, Comand.length() - 1);
+        Serial.print("Comando: "); Serial.println(Comand);
+        Serial1.print("Comando: "); Serial1.println(Comand);
+
+        if (Comand.substring(0, 1) == "m" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value < 2000)
+            {
+                motor_bb = value;
+                Serial.print("novo motor bombordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Motor nao valido camarada!");
+                Serial1.println("Motor nao valido camarada!");
+            }
+        }
+        if (Comand.substring(0, 1) == "M" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value < 2000)
+            {
+                motor_eb = value;
+                Serial.print("novo motor estibordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Motor nao valido camarada!");
+                Serial1.println("Motor nao valido camarada!");
+            }
+        }
+        if (Comand.substring(0, 1) == "l" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value < 2000)
+            {
+                rudder_bb = value;
+                Serial.print("leme bombordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Leme nao valido camarada!");
+                Serial1.println("Leme nao valido camarada!");
+            }
+        }
+        if (Comand.substring(0, 1) == "L" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value < 2000)
+            {
+                rudder_eb = value;
+                Serial.print("leme estibordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Leme nao valido camarada!");
+                Serial.println(value);
+                Serial1.println("Leme nao valido camarada!");
+            }
+        }
+
+        if (Comand == "NAV_ON") {
+            validComand = "Valid";
+            digitalWrite(NAV_LIGHTS_PIN, HIGH);
+        }
+        if (Comand == "NAV_OFF") {
+            validComand = "Valid";
+            digitalWrite(NAV_LIGHTS_PIN, LOW);
+        }
+
+
+        Comand = "";
+        Serial.println(validComand);
+        Serial1.println(validComand);
+    }
 }
 
-void process_serial_packet(char channel, uint32_t value, channels_t& obj)
-{
-    byte c;
-    /*
-        if (channel == 'r') {           // RFID tag
-            for (c = 0; c < 4; c++) {
-                //nuidPICC[c] = (value >> (c * 8)) & 0xFF;
-            }
-        } else if (channel == 'i')  {   // IR Sensors + Touch
-            for (c = 0; c < 5; c++) {
-                //IRLine.IR_values[c] = 16 * ((value >> (c * 6)) & 0x3F);
-            }
-            //TouchSwitch = ((value >> 31) & 1);
-        } else if (channel == 'g')  {  // Control
-            // Calc control
-            //go = 1;
-        } else if (channel == 's')  {  // Set new state
-            //robot.state = value;
-        else */
-    if (channel == 'm')  {
-        motor_bb = value;
-    } else if (channel == 'M')  {
-        motor_eb = value;
-    } else if (channel == 'l')  {
-        rudder_bb = value;
-    } else if (channel == 'L')  {
-        rudder_eb = value;
+//DO NOT KEEP THIS
+void motor_to_leds(int mbb, int meb){
+    int r=0,g=0,b=0;
 
-    } else if (channel == 't')  {
-        serial_channels.sendFloat('T', frequency);              
-    } else if (channel == 'p')  { // Ping
-        obj.send(channel, value + 1);
-    }
+    r = 100 - abs((mbb-1500)/5);
+    g = (mbb>1500) * (mbb-1500)/5;
+    b = (mbb<1500) * (1500-mbb)/5;
+    analogWrite(MOTOR_BB_RED, r);
+    analogWrite(MOTOR_BB_GREEN, g);
+    analogWrite(MOTOR_BB_BLUE, b);
+
+    r = 100 - abs((meb-1500)/5);
+    g = (meb>1500) * (meb-1500)/5;
+    b = (meb<1500) * (1500-meb)/5;
+    analogWrite(MOTOR_EB_RED, r);
+    analogWrite(MOTOR_EB_GREEN, g);
+    analogWrite(MOTOR_EB_BLUE, b);
+    
 }
 
 // the setup function runs once when you press reset or power the board
@@ -83,13 +179,6 @@ void setup() {
         Serial2.begin(9600); // connect gps sensor
         Serial3.begin(4800); // LT1000
 
-
-        servo_rudder1.attach(RUDDER_PIN1);    // the rudder is connected to pin 12
-        servo_rudder2.attach(RUDDER_PIN2);
-
-        servo_rudder1.write(RUDDER_1_TRIM);
-        servo_rudder2.write(RUDDER_2_TRIM);
-
         motor1.attach(MOTOR1_PIN);
         motor1.write(MOTOR_PARADO);
 
@@ -99,36 +188,53 @@ void setup() {
         pinMode(NAV_LIGHTS_PIN, OUTPUT);
         digitalWrite(NAV_LIGHTS_PIN, HIGH);
     */
+    Serial.begin(115200);
+    Serial.println("Sistema a iniciar, seja bem-vindo");
+
+    servo_rudder1.attach(RUDDER_PIN1);    // the rudder is connected to pin 12 or not..
+    servo_rudder2.attach(RUDDER_PIN2);
+
+    servo_rudder1.write(RUDDER_1_TRIM);
+    servo_rudder2.write(RUDDER_2_TRIM);
+
+    Serial.print("Leme 1 na posição: "); Serial.println(RUDDER_1_TRIM);
+    Serial.print("Leme 2 na posição: "); Serial.println(RUDDER_2_TRIM);
 
     // initialize digital pin LED_BUILTIN as an output.
     pinMode(LED_BUILTIN, OUTPUT);
 
-    Serial.begin(115200);
-    serial_channels.init(process_serial_packet, serial_write);
+    pinMode(MOTOR_BB_RED, OUTPUT);
+    pinMode(MOTOR_BB_GREEN, OUTPUT);
+    pinMode(MOTOR_BB_BLUE, OUTPUT);
+    pinMode(MOTOR_EB_RED, OUTPUT);
+    pinMode(MOTOR_EB_GREEN, OUTPUT);
+    pinMode(MOTOR_EB_BLUE, OUTPUT);
+    
 }
 
 // the loop function runs over and over again forever
 void loop() {
-
-    byte serialByte;
-    // Serial Port Events
-    if (Serial.available() > 0) {
-        serialByte = Serial.read();
-        serial_channels.StateMachine(serialByte);
-    }
-
+    ReadComand();
     /*
         motor1.write(control.motor_eb_speed);
         motor2.write(control.motor_bb_speed);
-        servo_rudder1.write();
-        servo_rudder2.write();
 
     */
 
-    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-    delay(motor_eb);                       // wait for a second
-    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-    delay(motor_bb);                       // wait for a second
+    servo_rudder1.write(rudder_bb);
+    servo_rudder2.write(rudder_eb);
+
+    motor_to_leds(motor_bb, motor_eb);
+
+
+    /*
+        digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+        delay(motor_eb);                       // wait for a second
+        digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+        delay(motor_bb);                       // wait for a second
+    */
+
+
     frequency = (millis() - timer);
     timer = millis();
 }

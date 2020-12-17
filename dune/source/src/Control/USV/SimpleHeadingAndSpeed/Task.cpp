@@ -323,9 +323,9 @@ namespace Control
           }
           else
           {
-            spew("New Estimated state received by Controller! Heading error 
-          float heading_error = Angles::normalizeRadian(m_target_heading - current_direction);
-          float heading_output = m_heading_pid.step(time_step, heading_error);is %f rad and is too big, so no speed PID will be used", heading_error);
+            spew("New Estimated state received by Controller! Heading error is %f rad and is too big, so no speed PID will be used", heading_error);
+            float heading_error = Angles::normalizeRadian(m_target_heading - current_direction);
+            float heading_output = m_heading_pid.step(time_step, heading_error);
           }
 
           distributeHeadingControl(heading_output);

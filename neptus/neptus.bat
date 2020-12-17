@@ -135,7 +135,7 @@ if %JAVA_MACHINE_TYPE%==windows-x86 (
 if %JAVA_MACHINE_TYPE%==windows-x86 (
   set LIBRARYPATH=%APP_HOME%\.;%APP_HOME%\libJNI/gdal/win/x86;%APP_HOME%\libJNI/win;%APP_HOME%\libJNI;/usr/lib/jni;%VTKLIB%;%OPENCVLIB%
 ) else (
-  set LIBRARYPATH=%APP_HOME%\.;%APP_HOME%\libJNI/gdal/win/x64;%APP_HOME%\libJNI/win;%APP_HOME%\libJNI/x64;%APP_HOME%\libJNI/europa/x64;%APP_HOME%\libJNI/gdal/win/x86;%APP_HOME%\libJNI;/usr/lib/jni;%VTKLIB%;%OPENCVLIB%
+  set LIBRARYPATH=%APP_HOME%\.;%APP_HOME%\libJNI/gdal/win/x64;%APP_HOME%\libJNI/win;%APP_HOME%\libJNI/europa/x64;%APP_HOME%\libJNI/x64;%APP_HOME%\libJNI/gdal/win/x86;%APP_HOME%\libJNI;/usr/lib/jni;%VTKLIB%;%OPENCVLIB%
 )
 
 set WORKSPACE=pt.lsts.neptus.loader.NeptusMain ws

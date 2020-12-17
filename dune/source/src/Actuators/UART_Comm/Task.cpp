@@ -74,10 +74,13 @@ namespace Actuators
       {
 
         size_t size_cmd = sizeof(cmd);
+	uint8_t data[40]={0};
 
         //inf("Size: %d", size_cmd);
 
         m_uart->write(cmd, size_cmd);
+	m_uart->read(data, 39);
+	war("Value coiseskjdgnlsdkjrgnlskdjhn %s", data);
        
         //trace("OUT | %s | %u", sanitize(cmd).c_str(), (unsigned)cmd.size());
         // Check for command success.
@@ -96,13 +99,13 @@ namespace Actuators
       {
         std::stringstream ss;
 
-        ss << cmd_type << val << "\n";
+        ss << cmd_type << val << "**\n\0";
 
         std::string str = ss.str();
 
-        //inf("Message: %f\n", val);
-
         const char *cmd = str.c_str();
+
+        //war("Message: %s\n", cmd);
       
         sendCommand(cmd);
       }
@@ -139,9 +142,7 @@ namespace Actuators
 	      //if (m_trg_prod == msg.get(SourceEntity))
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
-          inf("Source (DUNE instance) ID is: %d", msg->getSource());
-          inf("Source entity (Task instance) ID is: %d", msg->getSourceEntity());
-	        inf("Truster ID is %d, value is %f ", msg->id, msg->value);
+	        inf("Truster ID is %d, value is %d ", msg->id, int((msg->value)*500.0 + 1500.0));
 
           if((msg->id) == 1)
           {
@@ -183,14 +184,12 @@ namespace Actuators
 	      //if (m_trg_prod == msg.get(SourceEntity))
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
-          inf("Source (DUNE instance) ID is: %d", msg->getSource());
-          inf("Source entity (Task instance) ID is: %d", msg->getSourceEntity());
-	        inf("Servo ID is %d, value is %f ", msg->id, msg->value);
+	        inf("Servo ID is %d, value is %d ", msg->id, int((msg->value)*500.0 + 1500.0));
 
           if ((msg->value) != s1_prev)
           {
             // "l" is the rudder identifier in the Arduino Sketch
-            createCommand("l", msg->value);
+            createCommand("l", int((msg->value)*500.0 + 1500.0));
 
             s1_prev = msg->value;
           }

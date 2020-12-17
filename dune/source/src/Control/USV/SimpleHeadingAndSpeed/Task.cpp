@@ -48,8 +48,8 @@ namespace Control
 
       using DUNE_NAMESPACES;
 
-      c_forward_cone = Math::c_pi/4.0;
-      c_forward_cone_tol = Math::c_pi/36.0;
+      static const fp64_t c_forward_cone = Math::c_pi/4.0;
+      static const fp64_t c_forward_cone_tol = Math::c_pi/36.0;
 
       struct Arguments
       {
@@ -139,7 +139,7 @@ namespace Control
           .defaultValue("0.2")
           .description("Percentage to apply to the thrusters when at low speeds");
 
-          param("High Speed Thruster Percentage", m_args.high_spd_thrust_percent)
+          param("High Speed Thruster Percentage", m_args.high_spd_rudder_percent)
           .defaultValue("0.8")
           .description("Percentage to apply to the thrusters when at high speeds");
 
@@ -198,11 +198,11 @@ namespace Control
           {
             resetPID();
             setupPID();
-          }. 
+          }
 
           if (paramChanged(m_args.max_thruster_rate))
           {
-            m_args.max_thruster_rate %= 100; // convert from % to fraction
+            m_args.max_thruster_rate /= 100; // convert from % to fraction
           }
         }
 
@@ -324,8 +324,6 @@ namespace Control
           else
           {
             spew("New Estimated state received by Controller! Heading error is %f rad and is too big, so no speed PID will be used", heading_error);
-            float heading_error = Angles::normalizeRadian(m_target_heading - current_direction);
-            float heading_output = m_heading_pid.step(time_step, heading_error);
           }
 
           distributeHeadingControl(heading_output);

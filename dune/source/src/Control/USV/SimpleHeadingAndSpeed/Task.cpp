@@ -114,6 +114,8 @@ namespace Control
         DUNE::Control::DiscretePID m_heading_pid;
         //! Time between estimated states used in PID controllers
         DUNE::Time::Delta m_timestep;
+        //! Control loops last reference
+        uint32_t m_scope_ref;
         //! Task arguments (parameters)
         Arguments m_args;
         
@@ -139,7 +141,7 @@ namespace Control
           .defaultValue("0.2")
           .description("Percentage to apply to the thrusters when at low speeds");
 
-          param("High Speed Thruster Percentage", m_args.high_spd_rudder_percent)
+          param("High Speed Rudder Percentage", m_args.high_spd_rudder_percent)
           .defaultValue("0.8")
           .description("Percentage to apply to the thrusters when at high speeds");
 
@@ -183,7 +185,11 @@ namespace Control
           // Initialize entity state.
           setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_IDLE);
 
+          war("Startup: controller disabled");
+
           // Subscribe to relevant IMC messages
+          bind<IMC::ControlLoops>(this);
+          bind<IMC::Abort>(this);
           bind<IMC::EstimatedState>(this);
           bind<IMC::DesiredHeading>(this);
           bind<IMC::DesiredSpeed>(this);
@@ -247,6 +253,20 @@ namespace Control
           }
         }
 
+        //! On activation
+        void
+        onActivation(void)
+        {
+          setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
+        }
+
+        //! On deactivation
+        void
+        onDeactivation(void)
+        {
+          setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_IDLE);
+        }
+
         //! Acquire resources.
         void
         onResourceAcquisition(void)
@@ -276,6 +296,42 @@ namespace Control
         }
 
         void
+        consume (const IMC::ControlLoops* msg)
+        {
+          if (!(msg->mask & (IMC::CL_YAW | IMC::CL_SPEED)))
+            return;
+
+          if (msg->scope_ref < m_scope_ref)
+            return;
+
+          m_scope_ref = msg->scope_ref;
+
+          if (msg->enable == isActive())
+            return;
+
+          if (msg->enable)
+            requestActivation();
+          else
+            requestDeactivation();
+
+          war(isActive() ? DTR("enabling") : DTR("disabling"));
+
+          if (!isActive())
+            resetPID();
+        }
+
+        void
+        consume(const IMC::Abort* msg)
+        {
+          if (msg->getDestination() != getSystemId())
+            return;
+
+          // This works as redundancy, in case everything else fails
+          resetPID();
+          war("disabling");
+        }
+
+        void
         consume(const IMC::DesiredHeading *msg)
         {
           m_target_heading = msg->value;
@@ -289,6 +345,17 @@ namespace Control
 
         void
         consume(const IMC::EstimatedState *msg){
+          
+          if (msg->getSource() != getSystemId())
+            return;
+
+          if (!isActive())
+          {
+            m_target_heading = msg->psi;
+            m_target_speed = msg->u;
+            return;
+          }
+
           double time_step = m_timestep.getDelta();
           if (time_step <= 0.0)
           {
@@ -344,6 +411,27 @@ namespace Control
         {
           m_speed_pid.reset();
           m_heading_pid.reset();
+
+          m_target_speed = 0.0;
+          m_high_speed = false;
+          m_moving_to_dest = false;
+          m_thruster_prev_act_port = 0.0;
+          m_thruster_prev_act_starboard = 0.0;
+          
+          IMC::SetThrusterActuation thrust_act_starboard;
+          IMC::SetThrusterActuation thrust_act_port;
+          IMC::SetServoPosition rudder;
+
+          thrust_act_starboard.id = 0;
+          thrust_act_starboard.value = 0.0;
+          thrust_act_port.id = 1;
+          thrust_act_port.value = 0.0;
+          rudder.id = 1;
+          rudder.value = 0.0;
+
+          dispatch(thrust_act_starboard);
+          dispatch(thrust_act_port);
+          dispatch(rudder);
         }
 
         //! Sets up PID controllers. 
@@ -531,9 +619,9 @@ namespace Control
           IMC::SetServoPosition rudders;
 
           thruster_port.value = m_thruster_act_port;
-          thruster_port.id = 1;
+          thruster_port.id = 0;
           thruster_starboard.value = m_thruster_act_starboard;
-          thruster_starboard.id = 2;
+          thruster_starboard.id = 1;
           rudders.value = m_rudders_act;
           rudders.id = 1;
 

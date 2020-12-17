@@ -145,7 +145,7 @@ namespace Actuators
 
           if((msg->id) == 1)
           {
-            value = int(((float)(msg->value)/2+0.5)*100);
+            value = int((msg->value)*500.0 + 1500.0);
 
             if((value) != t1_prev)
             {
@@ -158,9 +158,9 @@ namespace Actuators
             }
           }
 
-          if((msg->id) == 2)
+          if((msg->id) == 0)
           {
-            value = ((msg->value)/2+0.5)*100;
+            value = int((msg->value)*500.0 + 1500.0);
 
             if ((value) != t2_prev)
             {

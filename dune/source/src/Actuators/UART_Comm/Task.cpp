@@ -51,10 +51,12 @@ namespace Actuators
       std::string uart_dev;
       // Serial port baud rate.
       unsigned uart_baud;
+      // frequency for sending actuator messages
+      float message_frequency;
       
     };
 
-    struct Task: public DUNE::Tasks::Task
+    struct Task: public DUNE::Tasks::Periodic
     {
 
       // Parameters.
@@ -62,6 +64,12 @@ namespace Actuators
       SerialPort* m_uart;
       // Task Arguments.
       Arguments m_args;
+      // Thruster Port Command
+      char m_cmd_thruster_1[10];
+      // Thruster Starboard Command
+      char m_cmd_thruster_2[10];
+      // Rudder Command
+      char m_cmd_rudder[10];
       // Serial Port buffer.
       //uint8_t m_bfr[BUFFER_MAX];
 
@@ -74,13 +82,10 @@ namespace Actuators
       {
 
         size_t size_cmd = sizeof(cmd);
-	uint8_t data[40]={0};
 
         //inf("Size: %d", size_cmd);
 
         m_uart->write(cmd, size_cmd);
-	m_uart->read(data, 39);
-	war("Value coiseskjdgnlsdkjrgnlskdjhn %s", data);
        
         //trace("OUT | %s | %u", sanitize(cmd).c_str(), (unsigned)cmd.size());
         // Check for command success.
@@ -103,11 +108,29 @@ namespace Actuators
 
         std::string str = ss.str();
 
-        const char *cmd = str.c_str();
+        //inf("Message: %f\n", val);
 
-        //war("Message: %s\n", cmd);
+        //const char *cmd = str.c_str();
+
+        switch (cmd_type)
+        {
+          case "M":
+            m_cmd_thruster_2 = str.c_str();
+            break;
+          
+          case "m":
+            m_cmd_thruster_1 = str.c_str();
+            break;
+          
+          case "l":
+            m_cmd_rudder = str.c_str();
+            break;
+          
+          default:
+            break;
+        }
       
-        sendCommand(cmd);
+        //sendCommand(cmd);
       }
 
       Task(const std::string& name, Tasks::Context& ctx):
@@ -126,8 +149,34 @@ namespace Actuators
         .defaultValue("112500")
         .description("Serial port baud rate");
 
+        param("Message Frequency", m_args.message_frequency)
+        .defaultValue("1.0")
+        .description("Frequency at which we send Thruster and Rudder Control Messages to Arduino");
+
+
+        std::stringstream ss;
+        ss << "m" << "1500" << "**\n\0";
+        std::string str = ss.str();
+        m_cmd_thruster_1 = str.c_str();
+        ss << "M" << "1500" << "**\n\0";
+        std::string str = ss.str();
+        m_cmd_thruster_2 = str.c_str();
+        ss << "l" << "1500" << "**\n\0";
+        std::string str = ss.str();
+        m_cmd_rudder = ss.str();
+
+
         bind<IMC::SetThrusterActuation>(this);
         bind<IMC::SetServoPosition>(this);
+      }
+
+      void
+      onUpdateParameters(void)
+      {
+        if (paramChanged(m_args.message_frequency))
+        {
+          setFrequency(m_args.message_frequency);
+        }
       }
 
       void
@@ -142,13 +191,12 @@ namespace Actuators
 	      //if (m_trg_prod == msg.get(SourceEntity))
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
-	        inf("Truster ID is %d, value is %d ", msg->id, int((msg->value)*500.0 + 1500.0));
+          value = int((msg->value)*500.0 + 1500.0);
+          inf("Truster %d's value is %f ", msg->id, value);
 
           if((msg->id) == 1)
           {
-            value = int((msg->value)*500.0 + 1500.0);
-
-            if((value) != t1_prev)
+            if(value != t1_prev)
             {
               // "m" is the motor 1 identifier in the Arduino Sketch
               createCommand("m", value);
@@ -161,9 +209,7 @@ namespace Actuators
 
           if((msg->id) == 0)
           {
-            value = int((msg->value)*500.0 + 1500.0);
-
-            if ((value) != t2_prev)
+            if (value != t2_prev)
             {
               // "M" is the motor 2 identifier in the Arduino Sketch
               createCommand("M", value);
@@ -184,26 +230,25 @@ namespace Actuators
 	      //if (m_trg_prod == msg.get(SourceEntity))
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
-	        inf("Servo ID is %d, value is %d ", msg->id, int((msg->value)*500.0 + 1500.0));
+          value = int((msg->value)*500.0 + 1500.0);
+          inf("Servo's value is %f ", value);
 
-          if ((msg->value) != s1_prev)
+          if (value != s1_prev)
           {
             // "l" is the rudder identifier in the Arduino Sketch
-            createCommand("l", int((msg->value)*500.0 + 1500.0));
+            createCommand("l", value);
 
-            s1_prev = msg->value;
+            s1_prev = value;
           }
         }
       }
-
-
+      
       void
-      onMain(void)
+      task(void)
       {
-        while (!stopping())
-        {
-          waitForMessages(1.0);
-        }
+        sendCommand(m_cmd_thruster_1);
+        sendCommand(m_cmd_thruster_2);
+        sendCommand(m_cmd_rudder);
       }
     };
   }

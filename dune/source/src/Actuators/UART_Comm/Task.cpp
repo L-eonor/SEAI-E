@@ -53,6 +53,10 @@ namespace Actuators
       unsigned uart_baud;
       // frequency for sending actuator messages
       float message_frequency;
+      // upper bound for actuation values
+      int value_upper_bound;
+      // lower bound for actuation values
+      int value_lower_bound;
       
     };
 
@@ -153,6 +157,14 @@ namespace Actuators
         .defaultValue("1.0")
         .description("Frequency at which we send Thruster and Rudder Control Messages to Arduino");
 
+        param("Actuation Lower Bound", m_args.value_lower_bound)
+        .defaultValue("1000")
+        .description("Received actuation values will be trimmed to this bound");
+
+        param("Actuation Upper Bound", m_args.value_upper_bound)
+        .defaultValue("2000")
+        .description("Received actuation values will be trimmed to this bound");
+
 
         std::stringstream ss;
         ss << "m" << "1500" << "**\n\0";
@@ -192,6 +204,7 @@ namespace Actuators
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
           value = int((msg->value)*500.0 + 1500.0);
+          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
           inf("Truster %d's value is %f ", msg->id, value);
 
           if((msg->id) == 1)
@@ -231,6 +244,7 @@ namespace Actuators
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
           value = int((msg->value)*500.0 + 1500.0);
+          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
           inf("Servo's value is %f ", value);
 
           if (value != s1_prev)

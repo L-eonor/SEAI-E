@@ -12,3 +12,4 @@ build/
 .cproject
 .settings/
 /.vscode
+dune/source/src/DUNE/

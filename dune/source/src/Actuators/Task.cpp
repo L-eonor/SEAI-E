@@ -77,9 +77,10 @@ namespace Actuators
       // Serial Port buffer.
       //uint8_t m_bfr[BUFFER_MAX];
 
-      //previous values of the servo and the thrusters
-      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0;
-      int value;
+      //previously stored values of the servo and the thrusters
+      int m_s1_prev = 0, m_t1_prev = 0, m_t2_prev = 0;
+      //previously sent values of the servo and the thrusters
+      int m_s1_sent_prev = 0, m_t1_sent_prev = 0, m_t2_sent_prev = 0;
 
       Task(const std::string& name, Tasks::Context& ctx):
           DUNE::Tasks::Periodic(name, ctx), m_uart(NULL)
@@ -112,6 +113,9 @@ namespace Actuators
         createCommand("m",1500);
         createCommand("M",1500);
         createCommand("l",1500);
+        m_s1_sent_prev = 1500;
+        m_t1_sent_prev = 1500;
+        m_t2_sent_prev = 1500;
 
 
         bind<IMC::SetThrusterActuation>(this);
@@ -142,6 +146,7 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
 	      //if (m_trg_prod == msg.get(SourceEntity))
+        int value;
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
           value = int((msg->value)*500.0 + 1500.0);
@@ -149,27 +154,27 @@ namespace Actuators
 
           if((msg->id) == 1)
           {
-            if(value != t1_prev)
+            if(value != m_t1_prev)
             {
               // "m" is the motor 1 identifier in the Arduino Sketch
               createCommand("m", value);
 
               inf("Truster %d's value is %d ", msg->id, value);
 
-              t1_prev = value;
+              m_t1_prev = value;
             }
           }
 
           if((msg->id) == 0)
           {
-            if (value != t2_prev)
+            if (value != m_t2_prev)
             {
               // "M" is the motor 2 identifier in the Arduino Sketch
               createCommand("M", value);
 
               inf("Truster %d's value is %d ", msg->id, value);
 
-              t2_prev = value;
+              m_t2_prev = value;
             }
 
           }
@@ -180,18 +185,19 @@ namespace Actuators
       consume(const IMC::SetServoPosition* msg)
       {
 	      //if (m_trg_prod == msg.get(SourceEntity))
+        int value;
 	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
 	      {
           value = int((msg->value)*500.0 + 1500.0);
           value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
 
-          if (value != s1_prev)
+          if (value != m_s1_prev)
           {
           inf("Servo's value is %d ", value);
             // "l" is the rudder identifier in the Arduino Sketch
             createCommand("l", value);
 
-            s1_prev = value;
+            m_s1_prev = value;
           }
         }
       }
@@ -204,7 +210,7 @@ namespace Actuators
 	//war("SSS%ssss\n", cmd);
         //inf("Size: %d", size_cmd);
 
-        m_uart->write(cmd, size_cmd);
+        m_uart->writeString(cmd);
 
         //trace("OUT | %s | %u", sanitize(cmd).c_str(), (unsigned)cmd.size());
         // Check for command success.
@@ -225,30 +231,42 @@ namespace Actuators
 
 
 
-	       ss << cmd_type << val << "\n*";
+	       ss << cmd_type << val << "*\n";
 
          std::string str = ss.str();
 
         //const char *cmd = str.c_str();
 
 	     if (cmd_type[0] == 'M')
-            strcpy(m_cmd_thruster_2, str.c_str());
+            {strcpy(m_cmd_thruster_2, str.c_str());}
        else if (cmd_type[0] == 'm')
-            strcpy(m_cmd_thruster_1, str.c_str());
+            {strcpy(m_cmd_thruster_1, str.c_str());}
 	     else if (cmd_type[0] == 'l')
-            strcpy(m_cmd_rudder,     str.c_str());
+            {strcpy(m_cmd_rudder,     str.c_str());}
       }
 
       void
       task(void)
       {
-        war("ola amiguinhos\n");
-        war("%s\n", m_cmd_thruster_1);
-        war("%s\n", m_cmd_thruster_2);
-        war("%s\n", m_cmd_rudder);
-        sendCommand(m_cmd_thruster_1);
-        sendCommand(m_cmd_thruster_2);
-        sendCommand(m_cmd_rudder);
+        war("Checking values...\n%s != %d\n%s != %d\n%s != %d", m_cmd_thruster_1, m_t1_prev, m_cmd_thruster_2, m_t2_prev, m_cmd_rudder, m_s1_prev);
+        if (m_t1_prev != m_t1_sent_prev)
+        {
+          war ("Thruster 1 value updated.");
+          sendCommand(m_cmd_thruster_1);
+          m_t1_sent_prev = m_t1_prev;
+        }
+        if (m_t2_prev != m_t2_sent_prev)
+        {
+          war ("Thruster 2 value updated.");
+          sendCommand(m_cmd_thruster_2);
+          m_t2_sent_prev = m_t2_prev;
+        }
+        if (m_s1_prev != m_s1_sent_prev)
+        {
+          war ("Rudder value updated.");
+          sendCommand(m_cmd_rudder);
+          m_s1_sent_prev = m_s1_prev;
+        }
       }
 
       /*void

@@ -265,6 +265,7 @@ namespace Control
         void
         onDeactivation(void)
         {
+          stop();
           setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_IDLE);
         }
 
@@ -421,6 +422,13 @@ namespace Control
           m_thruster_prev_act_port = 0.0;
           m_thruster_prev_act_starboard = 0.0;
           
+          stop();
+        }
+
+        //! Sends standby signals to thrusters and rudders
+        void
+        stop(void)
+        {
           IMC::SetThrusterActuation thrust_act_starboard;
           IMC::SetThrusterActuation thrust_act_port;
           IMC::SetServoPosition rudder;

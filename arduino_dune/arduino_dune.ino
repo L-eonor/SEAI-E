@@ -3,8 +3,8 @@
 #define RUDDER_PIN1 11 // leme EB
 #define RUDDER_PIN2 13 // leme BB
 
-#define RUDDER_1_TRIM 94 //VALORES PARA CENTRAR OS LEMES (TRIM)
-#define RUDDER_2_TRIM 102
+#define RUDDER_1_TRIM 100 //VALORES PARA CENTRAR OS LEMES (TRIM)
+#define RUDDER_2_TRIM 100
 
 #define MOTOR1_PIN 10 // motor EB esta
 #define MOTOR2_PIN 12 // motor BB
@@ -56,85 +56,110 @@ String Comand;
 */
 void ReadComand() {
     String validComand = "Invalid";
+    char buffer[10];
     if (Serial1.available() > 0)
         Comand = Serial1.readString();
-    if (Serial.available() > 0)
-        Comand = Serial.readString();
+    if (Serial.available() > 0){
+        //Comand = Serial.readString();
+        Serial.readBytesUntil( '*', buffer, 9);
+        //Serial.println(buffer);
+        Comand = buffer;
+        //Serial.print(Comand); 
+        Comand = Comand.substring(0, 5);
+        //Serial.readBytes(buffer, 9);
+        //Serial.flush();
+    }
 
     if (Comand == "") {
     }
     else {
 
-        Comand = Comand.substring(0, Comand.length() - 1);
-        Serial.print("Comando: "); Serial.println(Comand);
-        Serial1.print("Comando: "); Serial1.println(Comand);
+        //Comand = Comand.substring(0, Comand.length() - 1);
+        Serial.print("Comando: "); Serial.print(Comand);Serial.print("da "); 
+        Serial.print("Comando substring: "); 
+        Serial.print(0);
+        Serial.print(buffer[0]);
+        Serial.print(" ");
+        Serial.print(1);
+        Serial.print(buffer[1]);
+        Serial.print(" ");
+        Serial.print(2);
+        Serial.print(buffer[2]);
+        Serial.print(" ");
+        Serial.print(3);
+        Serial.print(buffer[3]);
+        Serial.print("te"); 
 
-        if (Comand.substring(0, 1) == "m" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        //if (Comand.substring(Comand.length() - 1, Comand.length()) == "*")
         {
-            int value = Comand.substring(1, 5).toInt();
-            if (value >= 1000  && value < 2000)
+            if (buffer[0] == 'm')
             {
-                motor_bb = value;
-                Serial.print("novo motor bombordo: ");
+                
+                int value = Comand.substring(1, 5).toInt();
                 Serial.println(value);
-                validComand = "Valid";
+                if (value >= 1000  && value <= 2000)
+                {
+                    motor_bb = value;
+                    Serial.print("novo motor bombordo: ");
+                    Serial.println(value);
+                    validComand = "Valid";
+                }
+                else
+                {
+                    Serial.println("Motor nao valido camarada!");
+                    Serial1.println("Motor nao valido camarada!");
+                }
             }
-            else
+            if (buffer[0] == 'M')
             {
-                Serial.println("Motor nao valido camarada!");
-                Serial1.println("Motor nao valido camarada!");
+                int value = Comand.substring(1, 5).toInt();
+                if (value >= 1000  && value <= 2000)
+                {
+                    motor_eb = value;
+                    Serial.print("novo motor estibordo: ");
+                    Serial.println(value);
+                    validComand = "Valid";
+                }
+                else
+                {
+                    Serial.println("Motor nao valido camarada!");
+                    Serial1.println("Motor nao valido camarada!");
+                }
+            }
+            if (buffer[0] == 'l')
+            {
+                int value = Comand.substring(1, 5).toInt();
+                if (value >= 1000  && value <= 2000)
+                {
+                    rudder_bb = value;
+                    Serial.print("leme bombordo: ");
+                    Serial.println(value);
+                    validComand = "Valid";
+                }
+                else
+                {
+                    Serial.println("Leme nao valido camarada!");
+                    Serial1.println("Leme nao valido camarada!");
+                }
+            }
+            if (buffer[0] == 'L')
+            {
+                int value = Comand.substring(1, 5).toInt();
+                if (value >= 1000  && value < 2000)
+                {
+                    rudder_eb = value;
+                    Serial.print("leme estibordo: ");
+                    Serial.println(value);
+                    validComand = "Valid";
+                }
+                else
+                {
+                    Serial.println("Leme nao valido camarada! ");
+                    Serial.print(value);
+                    Serial1.println("Leme nao valido camarada!");
+                }
             }
         }
-        if (Comand.substring(0, 1) == "M" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
-        {
-            int value = Comand.substring(1, 5).toInt();
-            if (value >= 1000  && value < 2000)
-            {
-                motor_eb = value;
-                Serial.print("novo motor estibordo: ");
-                Serial.println(value);
-                validComand = "Valid";
-            }
-            else
-            {
-                Serial.println("Motor nao valido camarada!");
-                Serial1.println("Motor nao valido camarada!");
-            }
-        }
-        if (Comand.substring(0, 1) == "l" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
-        {
-            int value = Comand.substring(1, 5).toInt();
-            if (value >= 1000  && value < 2000)
-            {
-                rudder_bb = value;
-                Serial.print("leme bombordo: ");
-                Serial.println(value);
-                validComand = "Valid";
-            }
-            else
-            {
-                Serial.println("Leme nao valido camarada!");
-                Serial1.println("Leme nao valido camarada!");
-            }
-        }
-        if (Comand.substring(0, 1) == "L" && Comand.substring(Comand.length() - 1, Comand.length()) == "*")
-        {
-            int value = Comand.substring(1, 5).toInt();
-            if (value >= 1000  && value < 2000)
-            {
-                rudder_eb = value;
-                Serial.print("leme estibordo: ");
-                Serial.println(value);
-                validComand = "Valid";
-            }
-            else
-            {
-                Serial.println("Leme nao valido camarada!");
-                Serial.println(value);
-                Serial1.println("Leme nao valido camarada!");
-            }
-        }
-
         if (Comand == "NAV_ON") {
             validComand = "Valid";
             digitalWrite(NAV_LIGHTS_PIN, HIGH);
@@ -152,23 +177,23 @@ void ReadComand() {
 }
 
 //DO NOT KEEP THIS
-void motor_to_leds(int mbb, int meb){
-    int r=0,g=0,b=0;
+void motor_to_leds(int mbb, int meb) {
+    int r = 0, g = 0, b = 0;
 
-    r = 100 - abs((mbb-1500)/5);
-    g = (mbb>1500) * (mbb-1500)/5;
-    b = (mbb<1500) * (1500-mbb)/5;
+    r = 100 - abs((mbb - 1500) / 5);
+    g = (mbb > 1500) * (mbb - 1500) / 5;
+    b = (mbb < 1500) * (1500 - mbb) / 5;
     analogWrite(MOTOR_BB_RED, r);
     analogWrite(MOTOR_BB_GREEN, g);
     analogWrite(MOTOR_BB_BLUE, b);
 
-    r = 100 - abs((meb-1500)/5);
-    g = (meb>1500) * (meb-1500)/5;
-    b = (meb<1500) * (1500-meb)/5;
+    r = 100 - abs((meb - 1500) / 5);
+    g = (meb > 1500) * (meb - 1500) / 5;
+    b = (meb < 1500) * (1500 - meb) / 5;
     analogWrite(MOTOR_EB_RED, r);
     analogWrite(MOTOR_EB_GREEN, g);
     analogWrite(MOTOR_EB_BLUE, b);
-    
+
 }
 
 // the setup function runs once when you press reset or power the board
@@ -209,7 +234,8 @@ void setup() {
     pinMode(MOTOR_EB_RED, OUTPUT);
     pinMode(MOTOR_EB_GREEN, OUTPUT);
     pinMode(MOTOR_EB_BLUE, OUTPUT);
-    
+
+//    Serial.bufferUntil("\n");
 }
 
 // the loop function runs over and over again forever

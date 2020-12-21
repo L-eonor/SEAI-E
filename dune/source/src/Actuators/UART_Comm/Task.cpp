@@ -108,7 +108,7 @@ namespace Actuators
       {
         std::stringstream ss;
 
-        ss << cmd_type << val << "**\n\0";
+        ss << cmd_type << val << "*\n";
 
         std::string str = ss.str();
 
@@ -167,13 +167,13 @@ namespace Actuators
 
 
         std::stringstream ss;
-        ss << "m" << "1500" << "**\n\0";
+        ss << "m" << "1500" << "*\n";
         std::string str = ss.str();
         m_cmd_thruster_1 = str.c_str();
-        ss << "M" << "1500" << "**\n\0";
+        ss << "M" << "1500" << "*\n";
         std::string str = ss.str();
         m_cmd_thruster_2 = str.c_str();
-        ss << "l" << "1500" << "**\n\0";
+        ss << "l" << "1500" << "*\n";
         std::string str = ss.str();
         m_cmd_rudder = ss.str();
 
@@ -194,7 +194,16 @@ namespace Actuators
       void
       onResourceAcquisition(void)
       {
-        m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud);
+        m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud,
+                                SerialPort::SP_PARITY_NONE,
+                                SerialPort::SP_STOPBITS_1,
+                                SerialPort::SP_DATABITS_8);
+      }
+
+      void
+      onResourceRelease(void)
+      {
+        Memory::clear(m_uart);
       }
 
       void

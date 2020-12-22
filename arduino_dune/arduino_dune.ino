@@ -57,8 +57,8 @@ String Comand;
 void ReadComand() {
     String validComand = "Invalid";
     char buffer[10];
-    if (Serial1.available() > 0)
-        Comand = Serial1.readString();
+    //if (Serial1.available() > 0)
+        //Comand = Serial1.readString();
     if (Serial.available() > 0){
         //Comand = Serial.readString();
         Serial.readBytesUntil( '*', buffer, 9);
@@ -75,91 +75,83 @@ void ReadComand() {
     else {
 
         //Comand = Comand.substring(0, Comand.length() - 1);
-        Serial.print("Comando: "); Serial.print(Comand);Serial.print("da "); 
-        Serial.print("Comando substring: "); 
-        Serial.print(0);
+        Serial.print("Comando: "); Serial.print(Comand);
+        Serial.print(". Comando substring: "); 
         Serial.print(buffer[0]);
-        Serial.print(" ");
-        Serial.print(1);
         Serial.print(buffer[1]);
-        Serial.print(" ");
-        Serial.print(2);
         Serial.print(buffer[2]);
-        Serial.print(" ");
-        Serial.print(3);
-        Serial.print(buffer[3]);
-        Serial.print("te"); 
+        Serial.printl(buffer[3]);
 
         //if (Comand.substring(Comand.length() - 1, Comand.length()) == "*")
+        //{
+        if (buffer[0] == 'm')
         {
-            if (buffer[0] == 'm')
+            
+            int value = Comand.substring(1, 5).toInt();
+            Serial.println(value);
+            if (value >= 1000  && value <= 2000)
             {
-                
-                int value = Comand.substring(1, 5).toInt();
+                motor_bb = value;
+                Serial.print("novo motor bombordo: ");
                 Serial.println(value);
-                if (value >= 1000  && value <= 2000)
-                {
-                    motor_bb = value;
-                    Serial.print("novo motor bombordo: ");
-                    Serial.println(value);
-                    validComand = "Valid";
-                }
-                else
-                {
-                    Serial.println("Motor nao valido camarada!");
-                    Serial1.println("Motor nao valido camarada!");
-                }
+                validComand = "Valid";
             }
-            if (buffer[0] == 'M')
+            else
             {
-                int value = Comand.substring(1, 5).toInt();
-                if (value >= 1000  && value <= 2000)
-                {
-                    motor_eb = value;
-                    Serial.print("novo motor estibordo: ");
-                    Serial.println(value);
-                    validComand = "Valid";
-                }
-                else
-                {
-                    Serial.println("Motor nao valido camarada!");
-                    Serial1.println("Motor nao valido camarada!");
-                }
-            }
-            if (buffer[0] == 'l')
-            {
-                int value = Comand.substring(1, 5).toInt();
-                if (value >= 1000  && value <= 2000)
-                {
-                    rudder_bb = value;
-                    Serial.print("leme bombordo: ");
-                    Serial.println(value);
-                    validComand = "Valid";
-                }
-                else
-                {
-                    Serial.println("Leme nao valido camarada!");
-                    Serial1.println("Leme nao valido camarada!");
-                }
-            }
-            if (buffer[0] == 'L')
-            {
-                int value = Comand.substring(1, 5).toInt();
-                if (value >= 1000  && value < 2000)
-                {
-                    rudder_eb = value;
-                    Serial.print("leme estibordo: ");
-                    Serial.println(value);
-                    validComand = "Valid";
-                }
-                else
-                {
-                    Serial.println("Leme nao valido camarada! ");
-                    Serial.print(value);
-                    Serial1.println("Leme nao valido camarada!");
-                }
+                Serial.println("Motor nao valido camarada!");
+                //Serial1.println("Motor nao valido camarada!");
             }
         }
+        if (buffer[0] == 'M')
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value <= 2000)
+            {
+                motor_eb = value;
+                Serial.print("novo motor estibordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Motor nao valido camarada!");
+                //Serial1.println("Motor nao valido camarada!");
+            }
+        }
+        if (buffer[0] == 'l')
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value <= 2000)
+            {
+                rudder_bb = value;
+                Serial.print("leme bombordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Leme nao valido camarada!");
+                //Serial1.println("Leme nao valido camarada!");
+            }
+        }
+        if (buffer[0] == 'L')
+        {
+            int value = Comand.substring(1, 5).toInt();
+            if (value >= 1000  && value < 2000)
+            {
+                rudder_eb = value;
+                Serial.print("leme estibordo: ");
+                Serial.println(value);
+                validComand = "Valid";
+            }
+            else
+            {
+                Serial.println("Leme nao valido camarada! ");
+                Serial.print(value);
+                //Serial1.println("Leme nao valido camarada!");
+            }
+        }
+        //} //closing bracket for commented-out "if"
         if (Comand == "NAV_ON") {
             validComand = "Valid";
             digitalWrite(NAV_LIGHTS_PIN, HIGH);
@@ -172,7 +164,7 @@ void ReadComand() {
 
         Comand = "";
         Serial.println(validComand);
-        Serial1.println(validComand);
+        //Serial1.println(validComand);
     }
 }
 
@@ -213,7 +205,7 @@ void setup() {
         pinMode(NAV_LIGHTS_PIN, OUTPUT);
         digitalWrite(NAV_LIGHTS_PIN, HIGH);
     */
-    Serial.begin(115200);
+    Serial.begin(115200, SERIAL_8E1);
     Serial.println("Sistema a iniciar, seja bem-vindo");
 
     servo_rudder1.attach(RUDDER_PIN1);    // the rudder is connected to pin 12 or not..

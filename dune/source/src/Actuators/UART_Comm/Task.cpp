@@ -251,7 +251,7 @@ namespace Actuators
         if (m_task_delta.getDelta() > ((1.0/(double)m_args.message_frequency) + c_timeout_tolerance))
         {
           // If task took too long to re-run, probably uart buffer is overfilled, so we flush it (both RX and TX).
-          m_uart.doFlush();
+          m_uart->doFlush();
         }
         consumeMessages();
 

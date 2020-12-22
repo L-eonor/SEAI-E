@@ -80,7 +80,7 @@ void ReadComand() {
         Serial.print(buffer[0]);
         Serial.print(buffer[1]);
         Serial.print(buffer[2]);
-        Serial.printl(buffer[3]);
+        Serial.println(buffer[3]);
 
         //if (Comand.substring(Comand.length() - 1, Comand.length()) == "*")
         //{

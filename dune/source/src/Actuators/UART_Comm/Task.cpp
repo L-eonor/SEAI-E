@@ -42,6 +42,10 @@ namespace Actuators
   //! @author Francisco
   namespace UART_Comm
   {
+    //! timeout difference between task periods, in which a problem with uart is considered to have happened
+    static const double c_timeout_tolerance = 1.0;
+
+
     using DUNE_NAMESPACES;
 
     struct Arguments
@@ -51,65 +55,42 @@ namespace Actuators
       std::string uart_dev;
       // Serial port baud rate.
       unsigned uart_baud;
-      
+      // frequency for sending actuator messages
+      float message_frequency;
+      // upper bound for actuation values
+      int value_upper_bound;
+      // lower bound for actuation values
+      int value_lower_bound;
+
     };
 
-    struct Task: public DUNE::Tasks::Task
+    struct Task: public DUNE::Tasks::Periodic
     {
 
       // Parameters.
-
+      //! Serial Port object for Arduino interfacing
       SerialPort* m_uart;
-      // Task Arguments.
+      //! Task Arguments.
       Arguments m_args;
-      // Serial Port buffer.
-      //uint8_t m_bfr[BUFFER_MAX];
-
-
-      //previous values of the servo and the thrusters
-      fp32_t s1_prev = 0, t1_prev = 0, t2_prev = 0;
-      int value;
-
-      void sendCommand(const char* cmd)
-      {
-
-        size_t size_cmd = sizeof(cmd);
-
-        //inf("Size: %d", size_cmd);
-
-        m_uart->write(cmd, size_cmd);
-       
-        //trace("OUT | %s | %u", sanitize(cmd).c_str(), (unsigned)cmd.size());
-        // Check for command success.
-        /*if(m_uart->hasNewData(1.0) == IOMultiplexing::PRES_OK)
-          {
-          int retval = m_uart->read(m_bfr, sizeof(bfr));
-          debug("%i", retval);
-          }
-          else
-          {
-          debug("no response!");
-          }*/
-      }
-
-      void createCommand(const std::string& cmd_type, fp32_t val)
-      {
-        std::stringstream ss;
-
-        ss << cmd_type << val << "\n";
-
-        std::string str = ss.str();
-
-        //inf("Message: %f\n", val);
-
-        const char *cmd = str.c_str();
-      
-        sendCommand(cmd);
-      }
+      //! Thruster Port Command
+      char m_cmd_thruster_1[65]={};
+      //! Thruster Starboard Command
+      char m_cmd_thruster_2[65]={};
+      //! Rudder Command
+      char m_cmd_rudder_1[65]={};
+      //! Rudder Command
+      char m_cmd_rudder_2[65]={};
+      //! previously stored values of the servo and the thrusters
+      int m_s1_prev = 0, m_s2_prev = 0, m_t1_prev = 0, m_t2_prev = 0;
+      //! previously sent values of the servo and the thrusters
+      int m_s1_sent_prev = 0, m_s2_sent_prev = 0, m_t1_sent_prev = 0, m_t2_sent_prev = 0;
+      //! mutex variable just in case string being written through serial port is being overwritten at the same time by consume
+      DUNE::Concurrency::Mutex m_mtx;
+      //! Delta between task() calls. If delta is too big, it means task is getting stuck which might indicate a filled buffer
+      DUNE::Time::Delta m_task_delta;
 
       Task(const std::string& name, Tasks::Context& ctx):
-        DUNE::Tasks::Task(name, ctx),
-        m_uart(NULL)
+          DUNE::Tasks::Periodic(name, ctx), m_uart(NULL)
       {
         param("Target Producer", m_args.m_trg_prod)
         .description("Target producer to read from")
@@ -120,11 +101,49 @@ namespace Actuators
         .description("Serial port device (used to communicate with the actuator)");
 
         param("Serial Port - Baud Rate", m_args.uart_baud)
-        .defaultValue("112500")
+        .defaultValue("115200")
         .description("Serial port baud rate");
+
+        param("Message Frequency", m_args.message_frequency)
+        .defaultValue("1.0")
+        .description("Frequency at which we send Thruster and Rudder Control Messages to Arduino");
+
+        param("Actuation Lower Bound", m_args.value_lower_bound)
+        .defaultValue("1000")
+        .description("Received actuation values will be trimmed to this bound");
+
+        param("Actuation Upper Bound", m_args.value_upper_bound)
+        .defaultValue("2000")
+        .description("Received actuation values will be trimmed to this bound");
+
+
+        createCommand("m",1500);
+        createCommand("M",1500);
+        createCommand("l",1500);
+        createCommand("L",1500);
+        m_s1_sent_prev = 1500;
+        m_s2_sent_prev = 1500;
+        m_t1_sent_prev = 1500;
+        m_t2_sent_prev = 1500;
+
 
         bind<IMC::SetThrusterActuation>(this);
         bind<IMC::SetServoPosition>(this);
+      }
+
+      void
+      onEntityResolution(void)
+      {
+
+      }
+
+      void
+      onUpdateParameters(void)
+      {
+        if (paramChanged(m_args.message_frequency))
+        {
+          setFrequency(m_args.message_frequency);
+        }
       }
 
       void
@@ -134,78 +153,139 @@ namespace Actuators
       }
 
       void
+      onResourceRelease(void)
+      {
+        Memory::clear(m_uart);
+      }
+
+      void
       consume(const IMC::SetThrusterActuation* msg)
       {
-	      //if (m_trg_prod == msg.get(SourceEntity))
-	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
-	      {
-          inf("Source (DUNE instance) ID is: %d", msg->getSource());
-          inf("Source entity (Task instance) ID is: %d", msg->getSourceEntity());
-	        inf("Truster ID is %d, value is %f ", msg->id, msg->value);
+        int value;
+	      //if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
+	      //{
+          value = int((msg->value)*500.0 + 1500.0);
+          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
 
           if((msg->id) == 1)
           {
-            value = int(((float)(msg->value)/2+0.5)*100);
-
-            if((value) != t1_prev)
+            if(value != m_t1_prev)
             {
               // "m" is the motor 1 identifier in the Arduino Sketch
               createCommand("m", value);
 
-              inf("Value is %d ", value);
-
-              t1_prev = value;
+              m_t1_prev = value;
             }
           }
 
-          if((msg->id) == 2)
+          if((msg->id) == 0)
           {
-            value = ((msg->value)/2+0.5)*100;
-
-            if ((value) != t2_prev)
+            if (value != m_t2_prev)
             {
               // "M" is the motor 2 identifier in the Arduino Sketch
               createCommand("M", value);
 
-              inf("Value is %d ", value);
-
-              t2_prev = value;
+              m_t2_prev = value;
             }
 
           }
-        }
+        //}
       }
-
 
       void
       consume(const IMC::SetServoPosition* msg)
       {
 	      //if (m_trg_prod == msg.get(SourceEntity))
-	      if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
-	      {
-          inf("Source (DUNE instance) ID is: %d", msg->getSource());
-          inf("Source entity (Task instance) ID is: %d", msg->getSourceEntity());
-	        inf("Servo ID is %d, value is %f ", msg->id, msg->value);
+        int value;
+	      //if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
+	      //{
+          value = int((msg->value)*500.0 + 1500.0);
+          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
 
-          if ((msg->value) != s1_prev)
+          if (value != m_s1_prev)
           {
             // "l" is the rudder identifier in the Arduino Sketch
-            createCommand("l", msg->value);
+            createCommand("l", value);
+            createCommand("L", value);
 
-            s1_prev = msg->value;
+            m_s1_prev = value;
           }
+        //}
+      }
+
+      inline void
+      sendCommand(const char* cmd)
+      {
+        m_mtx.lock();
+        m_uart->writeString(cmd);
+        m_mtx.unlock();
+      }
+
+      void createCommand(const std::string& cmd_type, fp32_t val)
+      {
+        std::stringstream ss;
+
+
+
+	       ss << cmd_type << val << "*";
+
+         std::string str = ss.str();
+
+        //const char *cmd = str.c_str();
+
+        m_mtx.lock();
+        if (cmd_type[0] == 'M')
+              {strcpy(m_cmd_thruster_2, str.c_str());}
+        else if (cmd_type[0] == 'm')
+              {strcpy(m_cmd_thruster_1, str.c_str());}
+        else if (cmd_type[0] == 'l')
+              {strcpy(m_cmd_rudder_1,     str.c_str());}
+        else if (cmd_type[0] == 'L')
+              {strcpy(m_cmd_rudder_2,     str.c_str());}
+        m_mtx.unlock();
+      }
+
+      void
+      task(void)
+      {
+        if (m_task_delta.getDelta() > ((1.0/(double)m_args.message_frequency) + c_timeout_tolerance))
+        {
+          // If task took too long to re-run, probably uart buffer is overfilled, so we flush it (both RX and TX).
+          m_uart->flush();
+        }
+        consumeMessages();
+
+        if (m_t1_prev != m_t1_sent_prev)
+        {
+          war ("Thruster 1 value updated.");
+          sendCommand(m_cmd_thruster_1);
+          m_t1_sent_prev = m_t1_prev;
+        }
+        if (m_t2_prev != m_t2_sent_prev)
+        {
+          war ("Thruster 2 value updated.");
+          sendCommand(m_cmd_thruster_2);
+          m_t2_sent_prev = m_t2_prev;
+        }
+        if (m_s1_prev != m_s1_sent_prev)
+        {
+          war ("Rudder value updated.");
+          sendCommand(m_cmd_rudder_1);
+          sendCommand(m_cmd_rudder_2);
+          m_s1_sent_prev = m_s1_prev;
+          m_s2_sent_prev = m_s2_prev;
         }
       }
 
-
-      void
+      /*void
       onMain(void)
       {
         while (!stopping())
         {
           waitForMessages(1.0);
         }
-      }
+      }*/
+
     };
   }
 }

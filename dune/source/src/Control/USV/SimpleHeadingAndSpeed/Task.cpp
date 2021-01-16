@@ -81,7 +81,6 @@ namespace Control
 
       struct Task: public DUNE::Tasks::Task
       {
-	double m_time_last_state;
         //! Entity ID of motor port based on Entity Label Resolution
         uint16_t m_entity_id_motor_port;
         //! Entity ID of motor starboard based on Entity Label Resolution
@@ -169,7 +168,7 @@ namespace Control
           m_moving_to_dest = false;
           m_thruster_prev_act_port = 0.0;
           m_thruster_prev_act_starboard = 0.0;
-	      m_time_last_state = 0;
+          m_scope_ref = 0;
 
           // Initialize entity state.
           setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_IDLE);
@@ -276,8 +275,10 @@ namespace Control
           war(isActive() ? DTR("enabling") : DTR("disabling"));
 
           if (!isActive())
+          {
             resetPID();
             stop();
+          }
         }
 
         void
@@ -317,12 +318,10 @@ namespace Control
           }
 
           double time_step = m_timestep.getDelta();
-	      m_time_last_state += time_step;
           if (time_step <= 0)
           {
             return;
           }
-	      m_time_last_state = 0;
 
           float current_direction;
           float current_speed = msg->u;
@@ -390,6 +389,10 @@ namespace Control
           IMC::SetThrusterActuation thrust_act_starboard;
           IMC::SetThrusterActuation thrust_act_port;
           IMC::SetServoPosition rudder;
+
+          thrust_act_starboard.setDestination(getSystemId());
+          thrust_act_port.setDestination(getSystemId());
+          rudder.setDestination(getSystemId());
 
           thrust_act_starboard.id = 0;
           thrust_act_starboard.value = 0.0;

@@ -44,6 +44,8 @@ namespace Actuators
   {
     //! timeout difference between task periods, in which a problem with uart is considered to have happened
     static const double c_timeout_tolerance = 1.0;
+    //! number of serial port messages after which the serial port gets flushed
+    static const unsigned int c_msg_flush_count = 8;
 
 
     using DUNE_NAMESPACES;
@@ -61,7 +63,6 @@ namespace Actuators
       int value_upper_bound;
       // lower bound for actuation values
       int value_lower_bound;
-
     };
 
     struct Task: public DUNE::Tasks::Periodic
@@ -80,13 +81,13 @@ namespace Actuators
       char m_cmd_rudder_1[65]={};
       //! Rudder Command
       char m_cmd_rudder_2[65]={};
+      //! Serial Port message counter
+      unsigned int m_msg_counter;
       //! previously stored values of the servo and the thrusters
       int m_s1_prev = 0, m_s2_prev = 0, m_t1_prev = 0, m_t2_prev = 0;
       //! previously sent values of the servo and the thrusters
       int m_s1_sent_prev = 0, m_s2_sent_prev = 0, m_t1_sent_prev = 0, m_t2_sent_prev = 0;
-      //! mutex variable just in case string being written through serial port is being overwritten at the same time by consume
-      DUNE::Concurrency::Mutex m_mtx;
-      //! Delta between task() calls. If delta is too big, it means task is getting stuck which might indicate a filled buffer
+      //! Delta between task() calls. If delta is too big, it means task is getting stuck which might indicate a filled buffer in Serial Port
       DUNE::Time::Delta m_task_delta;
 
       Task(const std::string& name, Tasks::Context& ctx):
@@ -125,6 +126,7 @@ namespace Actuators
         m_s2_sent_prev = 1500;
         m_t1_sent_prev = 1500;
         m_t2_sent_prev = 1500;
+        m_msg_counter = 0;
 
 
         bind<IMC::SetThrusterActuation>(this);
@@ -216,9 +218,13 @@ namespace Actuators
       inline void
       sendCommand(const char* cmd)
       {
-        m_mtx.lock();
         m_uart->writeString(cmd);
-        m_mtx.unlock();
+
+        if (++m_msg_counter >= c_msg_flush_count)
+        {
+            m_uart->flush();
+            m_msg_counter = 0;
+        }
       }
 
       void createCommand(const std::string& cmd_type, fp32_t val)
@@ -233,7 +239,6 @@ namespace Actuators
 
         //const char *cmd = str.c_str();
 
-        m_mtx.lock();
         if (cmd_type[0] == 'M')
               {strcpy(m_cmd_thruster_2, str.c_str());}
         else if (cmd_type[0] == 'm')
@@ -242,7 +247,6 @@ namespace Actuators
               {strcpy(m_cmd_rudder_1,     str.c_str());}
         else if (cmd_type[0] == 'L')
               {strcpy(m_cmd_rudder_2,     str.c_str());}
-        m_mtx.unlock();
       }
 
       void
@@ -276,15 +280,6 @@ namespace Actuators
           m_s2_sent_prev = m_s2_prev;
         }
       }
-
-      /*void
-      onMain(void)
-      {
-        while (!stopping())
-        {
-          waitForMessages(1.0);
-        }
-      }*/
 
     };
   }

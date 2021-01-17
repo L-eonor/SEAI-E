@@ -162,6 +162,7 @@ namespace Supervisors
           if (m_curr_altitude < m_args.min_acceptable_altitude)
           {
             err("Aborted mission due to unsafe altitude. Send maneuver in order to navigate out of this area.");
+            spew ("The altitude that triggered this error was: %f m", m_curr_altitude);
             dispatch(m_abort, DUNE::Tasks::DispatchFlags::DF_LOOP_BACK);
             m_low_altitude = true;
           }
@@ -171,12 +172,14 @@ namespace Supervisors
           if (m_curr_altitude < m_args.min_acceptable_altitude - m_args.min_altitude_margin)
           {
             err("Aborted mission due to unsafe altitude. Altitude is too low to navigate, retrieve the system.");
+            spew ("The altitude that triggered this error was: %f m", m_curr_altitude);
             dispatch(m_abort, DUNE::Tasks::DispatchFlags::DF_LOOP_BACK);
           }
           else if (m_curr_altitude > m_args.min_acceptable_altitude + m_args.good_altitude_margin)
           {
             m_low_altitude = false;
             inf("Altitude is back to acceptable levels.");
+            spew ("The altitude that triggered this event was: %f m", m_curr_altitude);
           }
         }
       }

@@ -71,6 +71,8 @@ namespace Actuators
       // Parameters.
       //! Serial Port object for Arduino interfacing
       SerialPort* m_uart;
+      //! Boolean that stores if a successful serial port connection has been established
+      bool m_uart_is_initialized;
       //! Task Arguments.
       Arguments m_args;
       //! Thruster Port Command
@@ -127,6 +129,7 @@ namespace Actuators
         m_t1_sent_prev = 1500;
         m_t2_sent_prev = 1500;
         m_msg_counter = 0;
+        m_uart_is_initialized = false;
 
 
         bind<IMC::SetThrusterActuation>(this);
@@ -151,7 +154,15 @@ namespace Actuators
       void
       onResourceAcquisition(void)
       {
-        m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud);
+        try
+        {
+          m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud);
+          m_uart_is_initialized = true;
+        }
+        catch(const std::exception& e)
+        {
+          err ("%s",e.what());
+        }
       }
 
       void
@@ -164,60 +175,56 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         int value;
-	      //if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
-	      //{
-          value = int((msg->value)*500.0 + 1500.0);
-          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
+        value = int((msg->value)*500.0 + 1500.0);
+        value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
 
-          if((msg->id) == 1)
+        if((msg->id) == 1)
+        {
+          if(value != m_t1_prev)
           {
-            if(value != m_t1_prev)
-            {
-              // "m" is the motor 1 identifier in the Arduino Sketch
-              createCommand("m", value);
+            // "m" is the motor 1 identifier in the Arduino Sketch
+            createCommand("m", value);
 
-              m_t1_prev = value;
-            }
+            m_t1_prev = value;
+          }
+        }
+
+        if((msg->id) == 0)
+        {
+          if (value != m_t2_prev)
+          {
+            // "M" is the motor 2 identifier in the Arduino Sketch
+            createCommand("M", value);
+
+            m_t2_prev = value;
           }
 
-          if((msg->id) == 0)
-          {
-            if (value != m_t2_prev)
-            {
-              // "M" is the motor 2 identifier in the Arduino Sketch
-              createCommand("M", value);
-
-              m_t2_prev = value;
-            }
-
-          }
-        //}
+        }
       }
 
       void
       consume(const IMC::SetServoPosition* msg)
       {
-	      //if (m_trg_prod == msg.get(SourceEntity))
         int value;
-	      //if (m_args.m_trg_prod == resolveEntity(msg->getSourceEntity()))
-	      //{
-          value = int((msg->value)*500.0 + 1500.0);
-          value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
+        value = int((msg->value)*500.0 + 1500.0);
+        value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
 
-          if (value != m_s1_prev)
-          {
-            // "l" is the rudder identifier in the Arduino Sketch
-            createCommand("l", value);
-            createCommand("L", value);
+        if (value != m_s1_prev)
+        {
+          // "l" is the rudder identifier in the Arduino Sketch
+          createCommand("l", value);
+          createCommand("L", value);
 
-            m_s1_prev = value;
-          }
-        //}
+          m_s1_prev = value;
+        }
       }
 
-      inline void
+      void
       sendCommand(const char* cmd)
       {
+        if (serialPortIsInvalid())
+          return;
+
         m_uart->writeString(cmd);
 
         if (++m_msg_counter >= c_msg_flush_count)
@@ -230,14 +237,8 @@ namespace Actuators
       void createCommand(const std::string& cmd_type, fp32_t val)
       {
         std::stringstream ss;
-
-
-
-	       ss << cmd_type << val << "*";
-
-         std::string str = ss.str();
-
-        //const char *cmd = str.c_str();
+	      ss << cmd_type << val << "*";
+        std::string str = ss.str();
 
         if (cmd_type[0] == 'M')
               {strcpy(m_cmd_thruster_2, str.c_str());}
@@ -247,6 +248,26 @@ namespace Actuators
               {strcpy(m_cmd_rudder_1,     str.c_str());}
         else if (cmd_type[0] == 'L')
               {strcpy(m_cmd_rudder_2,     str.c_str());}
+      }
+
+      bool
+      serialPortIsInvalid()
+      {
+        if (!m_uart_is_initialized)
+        {
+          try
+          {
+            m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud);
+            m_uart_is_initialized = true;
+          }
+          catch(const std::exception& e)
+          {
+            err ("%s",e.what());
+            return true;
+          }
+        }
+
+        return false;
       }
 
       void

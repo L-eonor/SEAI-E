@@ -282,19 +282,19 @@ namespace Actuators
 
         if (m_t1_prev != m_t1_sent_prev)
         {
-          war ("Thruster 1 value updated.");
+          spew ("Thruster 1 value updated.");
           sendCommand(m_cmd_thruster_1);
           m_t1_sent_prev = m_t1_prev;
         }
         if (m_t2_prev != m_t2_sent_prev)
         {
-          war ("Thruster 2 value updated.");
+          spew ("Thruster 2 value updated.");
           sendCommand(m_cmd_thruster_2);
           m_t2_sent_prev = m_t2_prev;
         }
         if (m_s1_prev != m_s1_sent_prev)
         {
-          war ("Rudder value updated.");
+          spew ("Rudder value updated.");
           sendCommand(m_cmd_rudder_1);
           sendCommand(m_cmd_rudder_2);
           m_s1_sent_prev = m_s1_prev;

@@ -156,7 +156,10 @@ namespace Actuators
       {
         try
         {
-          m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud);
+          m_uart = new SerialPort(m_args.uart_dev, m_args.uart_baud,
+                                SerialPort::SP_PARITY_EVEN,
+                                SerialPort::SP_STOPBITS_1,
+                                SerialPort::SP_DATABITS_8);
           m_uart_is_initialized = true;
         }
         catch(const std::exception& e)
@@ -207,7 +210,7 @@ namespace Actuators
       {
         int value;
         value = int((msg->value)*500.0 + 1500.0);
-        value =  DUNE::Math::trimValue(value, m_args.value_lower_bound, m_args.value_upper_bound);
+        value =  DUNE::Math::trimValue(value, m_args.value_lower_bound+1, m_args.value_upper_bound-1);
 
         if (value != m_s1_prev)
         {

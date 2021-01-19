@@ -137,15 +137,15 @@ namespace Control
           .description("Maximum value of thruster actuation change in Duty Cycle/second");
 
           param("Low Speed Thruster Percentage", m_args.low_spd_thrust_percent)
-          .defaultValue("0.2")
+          .defaultValue("1.0")
           .description("Percentage to apply to the thrusters when at low speeds");
 
           param("High Speed Rudder Percentage", m_args.high_spd_rudder_percent)
-          .defaultValue("0.8")
+          .defaultValue("1.0")
           .description("Percentage to apply to the thrusters when at high speeds");
 
           param("High Speed Threshold", m_args.speed_threshold)
-          .defaultValue("1.0")
+          .defaultValue("2.0")
           .description("Speed threshold that limits High Speed and Low Speed");
 
           param("High Speed Hysteresis", m_args.speed_hysteresis)
@@ -332,7 +332,7 @@ namespace Control
           }
           else
           {
-            current_direction = msg->psi; // for now, until i don't know how to get true heading
+            current_direction = msg->psi; // ideally we would have access to the system's heading and use it if moving too slowly
             //desired_direction = msg->TRUE_HEADING;
           }
 
@@ -427,7 +427,9 @@ namespace Control
         distributeHeadingControl(float heading_output)
         {
           // calculate distribution according to current speed state
-          if (m_high_speed)
+          
+          //Implementação sugerida pelo tenente
+          /*if (m_high_speed)
           {
             m_thruster_act_heading = heading_output;
             if (m_moving_to_dest)
@@ -439,7 +441,19 @@ namespace Control
           {
             m_thruster_act_heading = heading_output * m_args.low_spd_thrust_percent;
             m_rudders_act = heading_output;
+          }*/
+
+          //Implementação que nos parece fazer mais sentido
+          if (!m_moving_to_dest)
+          {
+            m_rudders_act = heading_output;
           }
+          else
+          {
+            m_rudders_act = 0;
+          }
+          
+          m_thruster_act_heading = heading_output;
 
           // guarantee that differential motor control is inside specified difference
           // m_thruster_act_heading = DUNE::Math::trimValue(m_thruster_act_heading, -m_args.max_thruster_diff, m_args.max_thruster_diff);

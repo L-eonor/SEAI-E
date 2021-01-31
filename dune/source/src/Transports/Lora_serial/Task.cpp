@@ -24,7 +24,7 @@
 // https://github.com/LSTS/dune/blob/master/LICENCE.md and                  *
 // http://ec.europa.eu/idabc/eupl.html.                                     *
 //***************************************************************************
-// Author: André Teixeira                                                 *
+// Author: Eduardo Marques                                                  *
 //***************************************************************************
 
 // ISO C++ 98 headers.
@@ -35,7 +35,7 @@
 
 namespace Transports
 {
-  namespace Lora_serial
+  namespace Serial
   {
     using DUNE_NAMESPACES;
 
@@ -89,13 +89,13 @@ namespace Transports
       }
 
       void
-      onDataTransmission(const char* State, unsigned int n)
+      onDataTransmission(const uint8_t* p, unsigned int n)
       {
-        m_uart->write(State, n);
+        m_uart->write(p, n);
       }
 
       void
-      onDataReception(char* Plan, unsigned int n, double timeout)
+      onDataReception(uint8_t* p, unsigned int n, double timeout)
       {
         if (!Poll::poll(*m_uart, timeout))
           return;
@@ -104,24 +104,24 @@ namespace Transports
 
         try
         {
-          n_r = m_uart->read(Plan, n);
+          n_r = m_uart->read(p, n);
 
-	  inf("%s", Plan);
+	  inf("%s", p);
 
         }
         catch (std::exception& e)
         {
-          err(DTR("ERRO LEITURA: %s"), e.what());
+          err(DTR("read error: %s"), e.what());
           return;
         }
 
         if (n_r < 0)
         {
-          err(DTR("NAO SEI QUE ERRO SERÁ ESTE"));
+          err(DTR("unknown read error"));
           return;
         }
 
-        handleData(m_parser, Plan, n_r);
+        handleData(m_parser, p, n_r);
       }
     };
   }

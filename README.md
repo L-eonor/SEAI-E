@@ -28,4 +28,6 @@ Contém código do DUNE - software que corre a bordo dos sistemas do LSTS. Cont�
 ### neptus
 Contém código e configurações do Neptus - software de controlo e monitorização de missões do LSTS. Contém o endereço único utilizado para o USV da marinha (denominado CEOV-ASV na aplicação).
 
+
+
 <a name="myfootnote1">1</a>: a abordagem inicial que foi definida por equipa seria a utilização e tempos de resposta como fator de decisão. As tarefas de comunicação de Iridium e LoRa seriam tarefas "ativáveis" em que apenas uma delas estaria, a qualquer momento, ativa. Se a tarefa de WiFi demorasse demasiado a comunicar (timeout) passaria para a tarefa de LoRa, e da de LoRa para Iridium em último caso. Esta abordagem revelou-se mais complicada do que inicialmente previsto, pois a componente WiFi está "embutida" no DUNE e é necessário primeiro perceber como seria possível fazer esta gestão.

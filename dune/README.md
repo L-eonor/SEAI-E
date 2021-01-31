@@ -14,6 +14,10 @@
   * dune/source/etc/ceov-asv.ini            -> contém a porta do Arduino e baudrate a utilizar
   * src/Actuators/UART_Comm                 -> tarefa de envio de mensagens para o Arduino
   * src/Actuators/Value_Generator           -> tarefa de teste unitário
+  
+## B- Controlo de Altitude Mínima
+  * dune/source/etc/ceov-asv.ini            -> contém a altitude bem como tolerâncias de altitude
+  * src/Supervisors/MinAltitude             -> tarefa de controlo de altitude mínima
 
 ## C- Receção de mensagens LoRa
   * dune/source/etc/ceov-asv.ini            -> contém a porta do módulo LoRa e baudrate a utilizar

@@ -17,5 +17,4 @@
 
 ## C- Receção de mensagens LoRa
   * dune/source/etc/ceov-asv.ini            -> contém a porta do módulo LoRa e baudrate a utilizar
-  * src/Actuators/UART_Comm                 -> tarefa de envio de mensagens para o Arduino
-  * src/Actuators/Value_Generator           -> tarefa de teste unitário
+  * src/Transports/Lora_serial              -> tarefa de receção de mensagens LoRa
